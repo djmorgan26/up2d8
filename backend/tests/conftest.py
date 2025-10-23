@@ -1,5 +1,5 @@
 """
-Pytest configuration and shared fixtures for InsightStream tests
+Pytest configuration and shared fixtures for UP2D8 tests
 """
 import pytest
 import os

@@ -1,31 +1,29 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database (FREE - local)
   postgres:
     image: postgres:15-alpine
-    container_name: insightstream-postgres
+    container_name: up2d8-postgres
     environment:
-      POSTGRES_DB: insightstream
-      POSTGRES_USER: insightstream
-      POSTGRES_PASSWORD: insightstream_dev_password
+      POSTGRES_DB: up2d8
+      POSTGRES_USER: up2d8
+      POSTGRES_PASSWORD: up2d8_dev_password
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U insightstream"]
+      test: ["CMD-SHELL", "pg_isready -U up2d8"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - insightstream
+      - up2d8
 
   # Redis Cache (FREE - local)
   redis:
     image: redis:7-alpine
-    container_name: insightstream-redis
+    container_name: up2d8-redis
     ports:
       - "6379:6379"
     volumes:
@@ -36,52 +34,51 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - insightstream
+      - up2d8
 
-  # API Service (optional - can run directly with uvicorn for faster dev)
-  # Uncomment if you want to run everything in Docker
-  # api:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile
-  #   container_name: insightstream-api
-  #   command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
-  #   volumes:
-  #     - ./backend:/app
-  #     - ./data:/app/data  # For ChromaDB persistence
-  #   ports:
-  #     - "8000:8000"
-  #   environment:
-  #     - DATABASE_URL=postgresql://insightstream:insightstream_dev_password@postgres:5432/insightstream
-  #     - REDIS_URL=redis://redis:6379/0
-  #     - LLM_PROVIDER=ollama
-  #     - OLLAMA_BASE_URL=http://host.docker.internal:11434  # Connect to host Ollama
-  #     - EMBEDDING_PROVIDER=sentence-transformers
-  #     - VECTOR_DB_PROVIDER=chroma
-  #     - CHROMA_PATH=/app/data/chroma
-  #     - EMAIL_PROVIDER=console
-  #     - ENVIRONMENT=development
-  #     - DEBUG=true
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - insightstream
+  # FastAPI Backend Service
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: up2d8-api
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data  # For ChromaDB persistence
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://up2d8:up2d8_dev_password@postgres:5432/up2d8
+      - REDIS_URL=redis://redis:6379/0
+      - LLM_PROVIDER=ollama
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434  # Connect to host Ollama
+      - EMBEDDING_PROVIDER=sentence-transformers
+      - VECTOR_DB_PROVIDER=chroma
+      - CHROMA_PATH=/app/data/chroma
+      - EMAIL_PROVIDER=console
+      - ENVIRONMENT=development
+      - DEBUG=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - up2d8
 
   # Celery Worker (optional - uncomment when needed)
   # worker:
   #   build:
   #     context: ./backend
   #     dockerfile: Dockerfile
-  #   container_name: insightstream-worker
+  #   container_name: up2d8-worker
   #   command: celery -A workers.celery_app worker --loglevel=info
   #   volumes:
   #     - ./backend:/app
   #     - ./data:/app/data
   #   environment:
-  #     - DATABASE_URL=postgresql://insightstream:insightstream_dev_password@postgres:5432/insightstream
+  #     - DATABASE_URL=postgresql://up2d8:up2d8_dev_password@postgres:5432/up2d8
   #     - REDIS_URL=redis://redis:6379/0
   #     - LLM_PROVIDER=ollama
   #     - OLLAMA_BASE_URL=http://host.docker.internal:11434
@@ -94,19 +91,19 @@ services:
   #     redis:
   #       condition: service_healthy
   #   networks:
-  #     - insightstream
+  #     - up2d8
 
   # Celery Beat (scheduled tasks - optional)
   # beat:
   #   build:
   #     context: ./backend
   #     dockerfile: Dockerfile
-  #   container_name: insightstream-beat
+  #   container_name: up2d8-beat
   #   command: celery -A workers.celery_app beat --loglevel=info
   #   volumes:
   #     - ./backend:/app
   #   environment:
-  #     - DATABASE_URL=postgresql://insightstream:insightstream_dev_password@postgres:5432/insightstream
+  #     - DATABASE_URL=postgresql://up2d8:up2d8_dev_password@postgres:5432/up2d8
   #     - REDIS_URL=redis://redis:6379/0
   #   depends_on:
   #     postgres:
@@ -114,14 +111,14 @@ services:
   #     redis:
   #       condition: service_healthy
   #   networks:
-  #     - insightstream
+  #     - up2d8
 
   # pgAdmin (optional - database management UI)
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: insightstream-pgadmin
+    container_name: up2d8-pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@insightstream.local
+      PGADMIN_DEFAULT_EMAIL: admin@up2d8.local
       PGADMIN_DEFAULT_PASSWORD: admin
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
@@ -131,14 +128,14 @@ services:
     depends_on:
       - postgres
     networks:
-      - insightstream
+      - up2d8
     profiles:
       - tools  # Only start with: docker-compose --profile tools up
 
   # Redis Commander (optional - Redis management UI)
   redis-commander:
     image: rediscommander/redis-commander:latest
-    container_name: insightstream-redis-commander
+    container_name: up2d8-redis-commander
     environment:
       - REDIS_HOSTS=local:redis:6379
     ports:
@@ -146,7 +143,7 @@ services:
     depends_on:
       - redis
     networks:
-      - insightstream
+      - up2d8
     profiles:
       - tools  # Only start with: docker-compose --profile tools up
 
@@ -159,18 +156,19 @@ volumes:
     driver: local
 
 networks:
-  insightstream:
+  up2d8:
     driver: bridge
 
 # Usage:
 #
-# Start core services (just DB and Redis):
+# Start all services (DB, Redis, FastAPI):
 #   docker-compose up -d
 #
 # Start with management tools:
 #   docker-compose --profile tools up -d
 #
 # View logs:
+#   docker-compose logs -f api
 #   docker-compose logs -f postgres
 #
 # Stop everything:
@@ -181,7 +179,9 @@ networks:
 #   docker-compose up -d
 #
 # Access services:
+#   FastAPI: http://localhost:8000
+#   API Docs: http://localhost:8000/docs
 #   PostgreSQL: localhost:5432
 #   Redis: localhost:6379
-#   pgAdmin: http://localhost:5050
-#   Redis Commander: http://localhost:8081
+#   pgAdmin: http://localhost:5050 (with --profile tools)
+#   Redis Commander: http://localhost:8081 (with --profile tools)

@@ -1,4 +1,4 @@
-# InsightStream Project Status
+# UP2D8 Project Status
 
 **Last Updated**: 2025-10-23
 **Phase**: Week 0 - Foundation Complete ✅
@@ -224,7 +224,7 @@ alembic upgrade head                           # Apply migrations
 alembic downgrade -1                           # Rollback one
 
 # Access DB
-docker-compose exec postgres psql -U insightstream
+docker-compose exec postgres psql -U up2d8
 ```
 
 ---
@@ -333,7 +333,7 @@ You're all set up! Next steps:
 
 ---
 
-**Project**: InsightStream (up2d8)
+**Project**: UP2D8 (up2d8)
 **Stack**: Python (FastAPI), PostgreSQL, Redis, Ollama, ChromaDB
 **Cost**: $0/month (development), ~$53/month (production @ 100 users)
 **Status**: Ready to Build! 🚀

@@ -2,7 +2,7 @@
 
 ## 🚀 Getting Started with Claude Code
 
-This guide will help you take these documents and immediately start building InsightStream.
+This guide will help you take these documents and immediately start building UP2D8.
 
 ---
 
@@ -25,7 +25,7 @@ Before starting, ensure you have:
 
 ```bash
 # Create main project directory
-mkdir insightstream && cd insightstream
+mkdir up2d8 && cd up2d8
 
 # Initialize git
 git init
@@ -130,10 +130,10 @@ EOF
 ### Step 4: Create README.md
 
 ```markdown
-# InsightStream - AI-Powered Industry Insight Platform
+# UP2D8 - AI-Powered Industry Insight Platform
 
 ## Overview
-InsightStream is an AI-driven information delivery and engagement platform that keeps professionals informed about industries, companies, and technologies through daily personalized digests and conversational AI.
+UP2D8 is an AI-driven information delivery and engagement platform that keeps professionals informed about industries, companies, and technologies through daily personalized digests and conversational AI.
 
 ## Quick Start
 
@@ -148,8 +148,8 @@ InsightStream is an AI-driven information delivery and engagement platform that 
 
 1. Clone the repository
 \`\`\`bash
-git clone https://github.com/yourusername/insightstream.git
-cd insightstream
+git clone https://github.com/yourusername/up2d8.git
+cd up2d8
 \`\`\`
 
 2. Copy environment variables
@@ -317,15 +317,15 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: insightstream
-      POSTGRES_USER: insightstream
-      POSTGRES_PASSWORD: insightstream_dev_password
+      POSTGRES_DB: up2d8
+      POSTGRES_USER: up2d8
+      POSTGRES_PASSWORD: up2d8_dev_password
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U insightstream"]
+      test: ["CMD-SHELL", "pg_isready -U up2d8"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -352,7 +352,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://insightstream:insightstream_dev_password@postgres:5432/insightstream
+      - DATABASE_URL=postgresql://up2d8:up2d8_dev_password@postgres:5432/up2d8
       - REDIS_URL=redis://redis:6379/0
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -370,7 +370,7 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=postgresql://insightstream:insightstream_dev_password@postgres:5432/insightstream
+      - DATABASE_URL=postgresql://up2d8:up2d8_dev_password@postgres:5432/up2d8
       - REDIS_URL=redis://redis:6379/0
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -388,7 +388,7 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=postgresql://insightstream:insightstream_dev_password@postgres:5432/insightstream
+      - DATABASE_URL=postgresql://up2d8:up2d8_dev_password@postgres:5432/up2d8
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       postgres:
@@ -406,7 +406,7 @@ volumes:
 ```bash
 cat > .env.example << 'EOF'
 # Database
-DATABASE_URL=postgresql://insightstream:insightstream_dev_password@localhost:5432/insightstream
+DATABASE_URL=postgresql://up2d8:up2d8_dev_password@localhost:5432/up2d8
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
@@ -426,7 +426,7 @@ REFRESH_TOKEN_EXPIRE_DAYS=7
 AWS_ACCESS_KEY_ID=your_aws_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret
 AWS_REGION=us-east-1
-SES_SENDER_EMAIL=noreply@insightstream.ai
+SES_SENDER_EMAIL=noreply@up2d8.ai
 
 # Environment
 ENVIRONMENT=development
@@ -489,15 +489,15 @@ logger = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("Starting InsightStream API")
+    logger.info("Starting UP2D8 API")
     # Create tables (in production, use Alembic)
     # Base.metadata.create_all(bind=engine)
     yield
     # Shutdown
-    logger.info("Shutting down InsightStream API")
+    logger.info("Shutting down UP2D8 API")
 
 app = FastAPI(
-    title="InsightStream API",
+    title="UP2D8 API",
     description="AI-Powered Industry Insight Platform",
     version="1.0.0",
     lifespan=lifespan
@@ -522,7 +522,7 @@ app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 @app.get("/")
 async def root():
     return {
-        "message": "InsightStream API",
+        "message": "UP2D8 API",
         "version": "1.0.0",
         "docs": "/docs"
     }
@@ -731,7 +731,7 @@ When you're ready to start implementation with Claude Code, use these prompts:
 
 ### Initial Setup Command:
 ```
-I need help setting up the InsightStream project based on the documentation in the docs/ folder. Let's start with:
+I need help setting up the UP2D8 project based on the documentation in the docs/ folder. Let's start with:
 
 1. Review docs/technical-architecture.md and docs/database-api-spec.md
 2. Create the backend/api/db/models.py file with all database models from the schema
@@ -889,10 +889,10 @@ alembic upgrade head
 alembic downgrade -1
 
 # SQL dump
-pg_dump insightstream > backup.sql
+pg_dump up2d8 > backup.sql
 
 # Restore
-psql insightstream < backup.sql
+psql up2d8 < backup.sql
 ```
 
 ### Docker
@@ -1001,7 +1001,7 @@ You'll know you're on track when:
 
 ---
 
-**Good luck building InsightStream! 🚀**
+**Good luck building UP2D8! 🚀**
 
 **Document Version**: 1.0  
 **Last Updated**: October 23, 2025

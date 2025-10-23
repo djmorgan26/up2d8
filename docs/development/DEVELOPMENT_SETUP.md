@@ -1,6 +1,6 @@
 # Free-Tier Development Setup Guide
 
-This guide shows you how to set up InsightStream for **completely free** local development, then migrate to paid services for production.
+This guide shows you how to set up UP2D8 for **completely free** local development, then migrate to paid services for production.
 
 ## 🎯 Cost Comparison
 

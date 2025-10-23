@@ -1129,8 +1129,8 @@ Create Stripe checkout session for upgrade
 ```json
 {
     "plan_id": "pro_monthly",
-    "success_url": "https://app.insightstream.ai/success",
-    "cancel_url": "https://app.insightstream.ai/pricing"
+    "success_url": "https://app.up2d8.ai/success",
+    "cancel_url": "https://app.up2d8.ai/pricing"
 }
 ```
 
@@ -1468,7 +1468,7 @@ X-RateLimit-Reset: 1698336000
     "message": "You have exceeded your chat message limit for today. Upgrade to Pro for higher limits.",
     "limit": 10,
     "reset_at": "2025-10-25T00:00:00Z",
-    "upgrade_url": "https://app.insightstream.ai/pricing"
+    "upgrade_url": "https://app.up2d8.ai/pricing"
 }
 ```
 

@@ -1,4 +1,4 @@
-# MVP Development Roadmap: InsightStream Platform
+# MVP Development Roadmap: UP2D8 Platform
 
 ## Timeline: 12 Weeks (3 Months)
 **Target Launch**: Beta Release with 100 Users
@@ -706,7 +706,7 @@ Before launching MVP, ensure:
 ## Contact & Updates
 
 **Project Lead**: [Your Name]  
-**Repository**: github.com/insightstream/platform  
+**Repository**: github.com/up2d8/platform  
 **Status Dashboard**: [Link to project tracking tool]  
 **Weekly Sync**: Every Monday at 10 AM ET
 

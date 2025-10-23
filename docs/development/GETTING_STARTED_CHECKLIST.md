@@ -1,6 +1,6 @@
 # Getting Started Checklist
 
-Use this checklist to get InsightStream running on your machine in ~30 minutes.
+Use this checklist to get UP2D8 running on your machine in ~30 minutes.
 
 ## ☑️ Pre-Flight Checklist
 
@@ -112,12 +112,12 @@ Ollama provides free, local LLM inference.
   ```
 
   You should see:
-  - `insightstream-postgres` - healthy
-  - `insightstream-redis` - healthy
+  - `up2d8-postgres` - healthy
+  - `up2d8-redis` - healthy
 
 - [ ] Test database connection:
   ```bash
-  docker-compose exec postgres psql -U insightstream -c "SELECT 1"
+  docker-compose exec postgres psql -U up2d8 -c "SELECT 1"
   ```
 
   Should return `1`.
@@ -191,7 +191,7 @@ Ollama provides free, local LLM inference.
 
 - [ ] Verify tables created:
   ```bash
-  docker-compose exec postgres psql -U insightstream -c "\dt"
+  docker-compose exec postgres psql -U up2d8 -c "\dt"
   ```
 
   Should show tables: `users`, `articles`, `digests`, etc.

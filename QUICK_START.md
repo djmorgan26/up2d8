@@ -1,4 +1,4 @@
-# InsightStream - Quick Start Guide
+# UP2D8 - Quick Start Guide
 
 **Get up and running in 15 minutes** ⚡
 

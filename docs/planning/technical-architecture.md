@@ -1,4 +1,4 @@
-# Technical Architecture Document: InsightStream Platform
+# Technical Architecture Document: UP2D8 Platform
 
 ## Document Information
 - **Version**: 1.0
@@ -358,7 +358,7 @@ def rank_articles(self, articles, user):
 <body>
     <div class="container">
         <header>
-            <h1>Your InsightStream Digest</h1>
+            <h1>Your UP2D8 Digest</h1>
             <p>{{ date }} | {{ user.name }}</p>
         </header>
         
@@ -945,7 +945,7 @@ rate_limits = {
 ### 7.1 Repository Structure
 
 ```
-insightstream/
+up2d8/
 ├── backend/
 │   ├── api/              # FastAPI application
 │   │   ├── routers/      # API endpoint definitions
@@ -1012,4 +1012,4 @@ insightstream/
 
 **Document Status**: Ready for Implementation Planning  
 **Next Review**: After MVP completion  
-**Contact**: engineering@insightstream.ai
+**Contact**: engineering@up2d8.ai

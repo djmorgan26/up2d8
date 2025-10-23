@@ -1,6 +1,6 @@
-# InsightStream Documentation
+# UP2D8 Documentation
 
-Welcome to the InsightStream documentation! This directory contains all project documentation organized by purpose.
+Welcome to the UP2D8 documentation! This directory contains all project documentation organized by purpose.
 
 ## 📚 Quick Navigation
 

@@ -16,12 +16,12 @@ hiredis==2.2.3
 
 # Task Queue
 celery==5.3.4
-celery-beat==2.5.0
+# Note: celery-beat is included in celery, no separate package needed
 
 # AI/ML - Development (Free/Local)
 sentence-transformers==2.2.2  # Local embeddings - FREE
 transformers==4.35.2  # For local LLM inference
-torch==2.1.1  # PyTorch for models
+torch==2.6.0  # PyTorch for models (updated for Python 3.13)
 chromadb==0.4.18  # Local vector DB - FREE
 ollama==0.1.6  # Ollama Python client - FREE
 

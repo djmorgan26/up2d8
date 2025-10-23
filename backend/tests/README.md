@@ -1,6 +1,6 @@
-# InsightStream Test Suite
+# UP2D8 Test Suite
 
-Comprehensive test suite for the InsightStream backend API.
+Comprehensive test suite for the UP2D8 backend API.
 
 ## Test Structure
 

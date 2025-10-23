@@ -1,13 +1,13 @@
-# InsightStream (up2d8)
+# UP2D8 (up2d8)
 
 > AI-Powered Industry Insight Platform - Stay informed without information overload
 
 [![Development Status](https://img.shields.io/badge/status-in%20development-yellow)]()
 [![License](https://img.shields.io/badge/license-proprietary-red)]()
 
-## 🎯 What is InsightStream?
+## 🎯 What is UP2D8?
 
-InsightStream delivers personalized daily AI digests about companies, industries, and technologies that matter to you. It combines:
+UP2D8 delivers personalized daily AI digests about companies, industries, and technologies that matter to you. It combines:
 
 - **Proactive Intelligence**: Daily email digests with AI-summarized industry news
 - **Reactive Understanding**: Conversational AI assistant for deeper exploration

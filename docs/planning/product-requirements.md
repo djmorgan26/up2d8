@@ -1,6 +1,6 @@
 # Product Requirements Document: AI-Powered Industry Insight Platform
 
-## Project Codename: InsightStream
+## Project Codename: UP2D8
 
 ---
 
@@ -232,7 +232,7 @@ AI: "I'll search for the official migration guide... [searches] Here's what you 
 - Swipe gestures for quick actions
 
 **Integrations:**
-- Slack: Daily digest in channel + `/insightstream [query]` command
+- Slack: Daily digest in channel + `/up2d8 [query]` command
 - Microsoft Teams: Similar functionality
 - Zapier: Trigger workflows based on keywords
 - API webhooks: Custom integrations for Enterprise

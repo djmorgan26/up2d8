@@ -1,8 +1,8 @@
-# Claude Code Configuration for InsightStream (up2d8)
+# Claude Code Configuration for UP2D8
 
 ## Project Context
 
-InsightStream is an AI-powered industry insight platform that delivers personalized daily digests via email with conversational AI chat for deeper exploration.
+UP2D8 is an AI-powered industry insight platform that delivers personalized daily digests via email with conversational AI chat for deeper exploration.
 
 **Current Phase**: Backend Development (MVP Week 1-8)
 **Focus**: Build backend API, scrapers, AI summarization, and digest generation before starting frontend
@@ -450,13 +450,11 @@ client = get_llm_client()
 # Terminal 1: Start Ollama
 ollama serve
 
-# Terminal 2: Start Docker
+# Terminal 2: Start Docker (includes FastAPI)
 docker-compose up -d
 
-# Terminal 3: Start API
-cd backend
-source venv/bin/activate
-uvicorn api.main:app --reload
+# FastAPI now runs in Docker at http://localhost:8000
+# API docs: http://localhost:8000/docs
 ```
 
 ### Run Tests
@@ -495,5 +493,5 @@ mypy backend/                           # Type check
 ---
 
 **Last Updated**: 2025-10-23
-**Project**: InsightStream (up2d8)
+**Project**: UP2D8
 **Stack**: Python (FastAPI), PostgreSQL, Redis, Ollama, ChromaDB

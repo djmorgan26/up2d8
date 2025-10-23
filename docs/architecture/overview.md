@@ -289,7 +289,7 @@ PINECONE_API_KEY=xxxxx
 **Development**: Safe defaults
 ```bash
 # It's okay to commit development passwords
-POSTGRES_PASSWORD=insightstream_dev_password
+POSTGRES_PASSWORD=up2d8_dev_password
 ```
 
 **Production**: Secrets Manager
