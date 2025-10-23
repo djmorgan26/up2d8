@@ -1,0 +1,187 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (FREE - local)
+  postgres:
+    image: postgres:15-alpine
+    container_name: insightstream-postgres
+    environment:
+      POSTGRES_DB: insightstream
+      POSTGRES_USER: insightstream
+      POSTGRES_PASSWORD: insightstream_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U insightstream"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - insightstream
+
+  # Redis Cache (FREE - local)
+  redis:
+    image: redis:7-alpine
+    container_name: insightstream-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - insightstream
+
+  # API Service (optional - can run directly with uvicorn for faster dev)
+  # Uncomment if you want to run everything in Docker
+  # api:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: insightstream-api
+  #   command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+  #   volumes:
+  #     - ./backend:/app
+  #     - ./data:/app/data  # For ChromaDB persistence
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     - DATABASE_URL=postgresql://insightstream:insightstream_dev_password@postgres:5432/insightstream
+  #     - REDIS_URL=redis://redis:6379/0
+  #     - LLM_PROVIDER=ollama
+  #     - OLLAMA_BASE_URL=http://host.docker.internal:11434  # Connect to host Ollama
+  #     - EMBEDDING_PROVIDER=sentence-transformers
+  #     - VECTOR_DB_PROVIDER=chroma
+  #     - CHROMA_PATH=/app/data/chroma
+  #     - EMAIL_PROVIDER=console
+  #     - ENVIRONMENT=development
+  #     - DEBUG=true
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - insightstream
+
+  # Celery Worker (optional - uncomment when needed)
+  # worker:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: insightstream-worker
+  #   command: celery -A workers.celery_app worker --loglevel=info
+  #   volumes:
+  #     - ./backend:/app
+  #     - ./data:/app/data
+  #   environment:
+  #     - DATABASE_URL=postgresql://insightstream:insightstream_dev_password@postgres:5432/insightstream
+  #     - REDIS_URL=redis://redis:6379/0
+  #     - LLM_PROVIDER=ollama
+  #     - OLLAMA_BASE_URL=http://host.docker.internal:11434
+  #     - EMBEDDING_PROVIDER=sentence-transformers
+  #     - VECTOR_DB_PROVIDER=chroma
+  #     - CHROMA_PATH=/app/data/chroma
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - insightstream
+
+  # Celery Beat (scheduled tasks - optional)
+  # beat:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: insightstream-beat
+  #   command: celery -A workers.celery_app beat --loglevel=info
+  #   volumes:
+  #     - ./backend:/app
+  #   environment:
+  #     - DATABASE_URL=postgresql://insightstream:insightstream_dev_password@postgres:5432/insightstream
+  #     - REDIS_URL=redis://redis:6379/0
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - insightstream
+
+  # pgAdmin (optional - database management UI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: insightstream-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@insightstream.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - insightstream
+    profiles:
+      - tools  # Only start with: docker-compose --profile tools up
+
+  # Redis Commander (optional - Redis management UI)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: insightstream-redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - insightstream
+    profiles:
+      - tools  # Only start with: docker-compose --profile tools up
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  insightstream:
+    driver: bridge
+
+# Usage:
+#
+# Start core services (just DB and Redis):
+#   docker-compose up -d
+#
+# Start with management tools:
+#   docker-compose --profile tools up -d
+#
+# View logs:
+#   docker-compose logs -f postgres
+#
+# Stop everything:
+#   docker-compose down
+#
+# Reset database (CAUTION - deletes data):
+#   docker-compose down -v
+#   docker-compose up -d
+#
+# Access services:
+#   PostgreSQL: localhost:5432
+#   Redis: localhost:6379
+#   pgAdmin: http://localhost:5050
+#   Redis Commander: http://localhost:8081
