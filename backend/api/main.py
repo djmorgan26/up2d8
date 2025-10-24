@@ -113,7 +113,7 @@ async def root():
 
 
 # Include routers
-app.include_router(auth.router, tags=["Authentication"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(scraping.router, tags=["Scraping"])
 
 # TODO: Add more routers as features are implemented

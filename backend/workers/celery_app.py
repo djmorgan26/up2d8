@@ -104,13 +104,13 @@ celery_app.conf.beat_schedule = {
     },
 }
 
-# Task routes (for queue prioritization)
-celery_app.conf.task_routes = {
-    "workers.tasks.scraping.*": {"queue": "scraping"},
-    "workers.tasks.processing.*": {"queue": "processing"},
-    "workers.tasks.digests.*": {"queue": "digests"},
-    "workers.tasks.maintenance.*": {"queue": "maintenance"},
-}
+# Task routes (for queue prioritization) - disabled for MVP, all tasks use default queue
+# celery_app.conf.task_routes = {
+#     "workers.tasks.scraping.*": {"queue": "scraping"},
+#     "workers.tasks.processing.*": {"queue": "processing"},
+#     "workers.tasks.digests.*": {"queue": "digests"},
+#     "workers.tasks.maintenance.*": {"queue": "maintenance"},
+# }
 
 # Task priorities
 celery_app.conf.task_default_priority = 5

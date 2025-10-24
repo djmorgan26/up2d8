@@ -1,7 +1,7 @@
 """API endpoints for scraping management."""
 
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -195,7 +195,7 @@ async def trigger_scrape_all(
 
 @router.post("/scrape/priority/{priority}", response_model=ScrapeResultResponse)
 async def trigger_scrape_by_priority(
-    priority: str = Query(..., regex="^(high|medium|low)$"),
+    priority: str = Path(..., regex="^(high|medium|low)$"),
     current_user: User = Depends(get_current_user),
 ):
     """Manually trigger scraping for sources of a specific priority.

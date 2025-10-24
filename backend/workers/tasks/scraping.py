@@ -117,15 +117,18 @@ def scrape_source(self, source_id: str) -> dict:
                     article_data["canonical"] = False
                     new_article = Article(**article_data)
                     db.add(new_article)
+                    db.flush()  # Generate ID immediately
                     duplicate_count += 1
                 else:
                     # New article
                     new_article = Article(**article.to_dict())
                     db.add(new_article)
+                    db.flush()  # Generate ID immediately
                     stored_count += 1
 
             except Exception as e:
                 logger.error(f"Error storing article: {e}", exc_info=True)
+                db.rollback()  # Rollback failed article
                 continue
 
         # Commit all articles
