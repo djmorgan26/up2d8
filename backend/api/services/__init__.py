@@ -13,6 +13,7 @@ __all__ = [
     "get_email_client",
     "create_scraper",
     "SourceManager",
+    "get_summarizer",
 ]
 
 def get_llm_client(*args, **kwargs):
@@ -30,3 +31,7 @@ def get_vector_db_client(*args, **kwargs):
 def get_email_client(*args, **kwargs):
     from api.services.email_provider import get_email_client as _get_email_client
     return _get_email_client(*args, **kwargs)
+
+def get_summarizer(*args, **kwargs):
+    from api.services.summarizer import get_summarizer as _get_summarizer
+    return _get_summarizer(*args, **kwargs)

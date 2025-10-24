@@ -13,6 +13,7 @@ logger = structlog.get_logger()
 
 class EmailProvider(str, Enum):
     CONSOLE = "console"  # FREE - just logs to console
+    SMTP = "smtp"  # FREE - Gmail/custom SMTP
     MAILGUN = "mailgun"  # FREE tier: 5,000 emails/month
     BREVO = "brevo"  # FREE tier: 300 emails/day
     MAILERSEND = "mailersend"  # FREE tier: 12,000 emails/month
@@ -88,6 +89,78 @@ class ConsoleEmailProvider(BaseEmailProvider):
         for message in messages:
             await self.send_email(message)
         return {"sent": len(messages), "failed": 0}
+
+
+class SMTPProvider(BaseEmailProvider):
+    """
+    SMTP email provider (FREE - works with Gmail, etc.)
+    Supports standard SMTP protocol
+    """
+
+    def __init__(
+        self,
+        smtp_host: str,
+        smtp_port: int,
+        smtp_username: str,
+        smtp_password: str,
+        use_tls: bool = True
+    ):
+        self.smtp_host = smtp_host
+        self.smtp_port = smtp_port
+        self.smtp_username = smtp_username
+        self.smtp_password = smtp_password
+        self.use_tls = use_tls
+
+    async def send_email(self, message: EmailMessage) -> bool:
+        """Send email via SMTP"""
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+
+        try:
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = message.subject
+            msg['From'] = message.from_email or self.smtp_username
+            msg['To'] = message.to
+
+            # Add both plain text and HTML parts
+            if message.text_body:
+                text_part = MIMEText(message.text_body, 'plain')
+                msg.attach(text_part)
+
+            html_part = MIMEText(message.html_body, 'html')
+            msg.attach(html_part)
+
+            # Connect and send
+            if self.use_tls:
+                server = smtplib.SMTP(self.smtp_host, self.smtp_port)
+                server.starttls()
+            else:
+                server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port)
+
+            server.login(self.smtp_username, self.smtp_password)
+            server.sendmail(msg['From'], [message.to], msg.as_string())
+            server.quit()
+
+            logger.info("email_sent_via_smtp", to=message.to, subject=message.subject)
+            return True
+
+        except Exception as e:
+            logger.error("smtp_send_failed", error=str(e), to=message.to)
+            return False
+
+    async def send_batch(self, messages: List[EmailMessage]) -> dict:
+        """Send batch via SMTP"""
+        sent = 0
+        failed = 0
+        for message in messages:
+            success = await self.send_email(message)
+            if success:
+                sent += 1
+            else:
+                failed += 1
+        return {"sent": sent, "failed": failed}
 
 
 class MailgunProvider(BaseEmailProvider):
@@ -255,6 +328,24 @@ class EmailProviderFactory:
 
         if provider == EmailProvider.CONSOLE:
             return ConsoleEmailProvider()
+
+        elif provider == EmailProvider.SMTP:
+            smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+            smtp_port = int(os.getenv("SMTP_PORT", "587"))
+            smtp_username = os.getenv("SMTP_USERNAME")
+            smtp_password = os.getenv("SMTP_PASSWORD")
+            use_tls = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+
+            if not smtp_username or not smtp_password:
+                raise ValueError("SMTP_USERNAME and SMTP_PASSWORD required")
+
+            return SMTPProvider(
+                smtp_host=smtp_host,
+                smtp_port=smtp_port,
+                smtp_username=smtp_username,
+                smtp_password=smtp_password,
+                use_tls=use_tls
+            )
 
         elif provider == EmailProvider.MAILGUN:
             api_key = os.getenv("MAILGUN_API_KEY")

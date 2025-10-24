@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UP2D8 Daily Digest</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f7;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .header .tagline {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            margin-top: 8px;
+        }
+        .greeting {
+            padding: 30px 30px 10px 30px;
+            color: #1d1d1f;
+            font-size: 18px;
+        }
+        .greeting strong {
+            color: #667eea;
+        }
+        .digest-info {
+            padding: 0 30px 20px 30px;
+            color: #6e6e73;
+            font-size: 14px;
+            border-bottom: 1px solid #e8e8ed;
+        }
+        .digest-info .badge {
+            display: inline-block;
+            background-color: #f0f0f5;
+            color: #667eea;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        .article {
+            padding: 25px 30px;
+            border-bottom: 1px solid #e8e8ed;
+        }
+        .article:hover {
+            background-color: #fafafa;
+        }
+        .article-header {
+            margin-bottom: 12px;
+        }
+        .article-source {
+            color: #667eea;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .article-title {
+            margin: 8px 0;
+            font-size: 20px;
+            font-weight: 600;
+            color: #1d1d1f;
+            line-height: 1.3;
+        }
+        .article-title a {
+            color: #1d1d1f;
+            text-decoration: none;
+        }
+        .article-title a:hover {
+            color: #667eea;
+        }
+        .article-meta {
+            color: #6e6e73;
+            font-size: 13px;
+            margin-top: 6px;
+        }
+        .article-summary {
+            color: #1d1d1f;
+            font-size: 15px;
+            line-height: 1.6;
+            margin-top: 12px;
+        }
+        .article-tags {
+            margin-top: 12px;
+        }
+        .tag {
+            display: inline-block;
+            background-color: #f0f0f5;
+            color: #6e6e73;
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-right: 6px;
+            margin-top: 6px;
+        }
+        .read-more {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background-color: #667eea;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .read-more:hover {
+            background-color: #5568d3;
+        }
+        .footer {
+            padding: 30px;
+            text-align: center;
+            background-color: #fafafa;
+            color: #6e6e73;
+            font-size: 13px;
+        }
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        .footer-links {
+            margin-top: 15px;
+        }
+        .footer-links a {
+            margin: 0 10px;
+        }
+        .personalized-note {
+            background-color: #f0f8ff;
+            border-left: 4px solid #667eea;
+            padding: 15px 20px;
+            margin: 20px 30px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #1d1d1f;
+        }
+        .empty-state {
+            padding: 60px 30px;
+            text-align: center;
+            color: #6e6e73;
+        }
+        .empty-state h3 {
+            color: #1d1d1f;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>UP2D8</h1>
+            <div class="tagline">Your AI-Powered Industry Insights</div>
+        </div>
+
+        <!-- Greeting -->
+        <div class="greeting">
+            Hello <strong>{{ user_name }}</strong>,
+        </div>
+
+        <!-- Digest Info -->
+        <div class="digest-info">
+            <div style="margin-bottom: 8px;">
+                <span class="badge">{{ digest_day }}</span>
+                {% if personalized %}
+                <span class="badge">✨ Personalized for You</span>
+                {% endif %}
+                {% if is_test %}
+                <span class="badge">🧪 Test Digest</span>
+                {% endif %}
+            </div>
+            <div>
+                {{ article_count }} articles selected from your industry sources
+            </div>
+        </div>
+
+        <!-- Personalized Note -->
+        {% if personalized %}
+        <div class="personalized-note">
+            📌 These articles match your interests in:
+            <strong>AI, Machine Learning, Software Development</strong>
+        </div>
+        {% endif %}
+
+        <!-- Articles -->
+        {% if articles %}
+            {% for article in articles %}
+            <div class="article">
+                <div class="article-header">
+                    <div class="article-source">{{ article.source }}</div>
+                    <h2 class="article-title">
+                        <a href="{{ article.url }}" target="_blank">{{ article.title }}</a>
+                    </h2>
+                    <div class="article-meta">
+                        {% if article.author %}By {{ article.author }} • {% endif %}
+                        {% if article.published_at %}{{ article.published_at[:10] }}{% endif %}
+                    </div>
+                </div>
+
+                <div class="article-summary">
+                    {{ article.summary }}
+                </div>
+
+                {% if article.companies or article.industries %}
+                <div class="article-tags">
+                    {% for company in article.companies[:3] %}
+                    <span class="tag">🏢 {{ company }}</span>
+                    {% endfor %}
+                    {% for industry in article.industries[:3] %}
+                    <span class="tag">📊 {{ industry }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <a href="{{ article.url }}" class="read-more" target="_blank">Read Full Article →</a>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <h3>No Articles Today</h3>
+            <p>Check back tomorrow for fresh industry insights!</p>
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <div class="footer">
+            <div>
+                <strong>UP2D8</strong> - AI-Powered Industry Insight Platform
+            </div>
+            <div style="margin-top: 10px;">
+                This digest was curated just for you using AI
+            </div>
+            <div class="footer-links">
+                <a href="https://up2d8.ai/preferences">Manage Preferences</a> •
+                <a href="https://up2d8.ai/unsubscribe">Unsubscribe</a> •
+                <a href="https://up2d8.ai/privacy">Privacy Policy</a>
+            </div>
+            <div style="margin-top: 15px; font-size: 12px; color: #86868b;">
+                © 2025 UP2D8. All rights reserved.
+            </div>
+        </div>
+    </div>
+</body>
+</html>
