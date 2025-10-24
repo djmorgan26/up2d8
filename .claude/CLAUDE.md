@@ -479,10 +479,247 @@ mypy backend/                           # Type check
 
 ---
 
+## Authentication System
+
+### Overview
+
+UP2D8 uses **JWT-based authentication** with access and refresh tokens. The auth system is fully implemented and tested.
+
+### Architecture
+
+**Location**:
+- Models: `backend/api/models/user.py`
+- Utilities: `backend/api/utils/auth.py`
+- Router: `backend/api/routers/auth.py`
+- Database Models: `backend/api/db/models.py` (User, UserPreference tables)
+
+**Token Strategy**:
+- **Access Token**: Short-lived (15 minutes), used for API requests
+- **Refresh Token**: Long-lived (7 days), used to get new access tokens
+- **Algorithm**: HS256 (HMAC with SHA-256)
+- **Storage**: Tokens are stateless JWT, no server-side storage (MVP)
+
+### API Endpoints
+
+```
+POST /api/v1/auth/signup       - Register new user
+POST /api/v1/auth/login        - Authenticate user
+POST /api/v1/auth/refresh      - Refresh access token
+POST /api/v1/auth/logout       - Logout (validates token)
+GET  /api/v1/auth/me           - Get current user info
+```
+
+### How to Use Authentication
+
+#### 1. Protecting Routes
+
+Use the `get_current_user` dependency to protect any route:
+
+```python
+from fastapi import APIRouter, Depends
+from api.utils.auth import get_current_user
+from api.db.models import User
+
+router = APIRouter()
+
+@router.get("/protected")
+async def protected_route(current_user: User = Depends(get_current_user)):
+    return {"user_id": current_user.id, "email": current_user.email}
+```
+
+#### 2. Testing with curl
+
+```bash
+# 1. Signup
+curl -X POST http://localhost:8000/api/v1/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"SecurePass123!","full_name":"Test User"}'
+
+# Response includes: user, access_token, refresh_token
+
+# 2. Login
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"SecurePass123!"}'
+
+# 3. Access Protected Route
+ACCESS_TOKEN="your_access_token_here"
+curl -X GET http://localhost:8000/api/v1/auth/me \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# 4. Refresh Token
+REFRESH_TOKEN="your_refresh_token_here"
+curl -X POST http://localhost:8000/api/v1/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d "{\"refresh_token\":\"$REFRESH_TOKEN\"}"
+```
+
+#### 3. Frontend Integration Example
+
+```javascript
+// Login
+const response = await fetch('http://localhost:8000/api/v1/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, password })
+});
+const { access_token, refresh_token, user } = await response.json();
+
+// Store tokens (localStorage, sessionStorage, or memory)
+localStorage.setItem('access_token', access_token);
+localStorage.setItem('refresh_token', refresh_token);
+
+// Access protected route
+const protectedResponse = await fetch('http://localhost:8000/api/v1/articles', {
+  headers: {
+    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+  }
+});
+```
+
+### Password Security
+
+**BCrypt Configuration**:
+- Algorithm: BCrypt (via passlib)
+- Rounds: Default (12 rounds)
+- **Important**: BCrypt has a 72-byte limit on password length
+- Passwords are automatically truncated to 72 bytes in `hash_password()` and `verify_password()`
+- Pin bcrypt version to `4.0.1` for passlib compatibility (see backend/requirements.txt:54)
+
+**Password Validation**:
+- Minimum length: 12 characters
+- Maximum length: 72 bytes (BCrypt limit)
+- Validated via Pydantic in `UserCreate` model
+
+### User Model Fields
+
+```python
+# Core fields (required)
+id: UUID (auto-generated)
+email: EmailStr (unique, indexed)
+password_hash: str (BCrypt hashed)
+full_name: str
+
+# Status fields
+tier: "free" | "pro" | "enterprise"
+status: "active" | "paused" | "suspended" | "deleted"
+onboarding_completed: bool
+
+# Timestamps
+created_at: datetime
+last_login_at: datetime (nullable)
+```
+
+### Token Payload Structure
+
+**Access Token**:
+```json
+{
+  "sub": "user_id_uuid",
+  "exp": 1234567890,
+  "iat": 1234567890,
+  "type": "access"
+}
+```
+
+**Refresh Token**:
+```json
+{
+  "sub": "user_id_uuid",
+  "exp": 1234567890,
+  "iat": 1234567890,
+  "type": "refresh"
+}
+```
+
+### Environment Variables
+
+Required in `docker-compose.yml` and `.env` files:
+
+```bash
+JWT_SECRET_KEY=dev_secret_key_change_in_production_...  # Min 32 chars
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=15
+REFRESH_TOKEN_EXPIRE_DAYS=7
+```
+
+### Common Auth Tasks
+
+**Check if user is authenticated**:
+```python
+current_user: User = Depends(get_current_user)
+# Automatically raises 401 if token invalid/expired
+```
+
+**Check user status**:
+```python
+if current_user.status != "active":
+    raise HTTPException(status_code=403, detail="Account not active")
+```
+
+**Get user preferences**:
+```python
+preferences = db.query(UserPreference).filter(
+    UserPreference.user_id == current_user.id
+).first()
+```
+
+**Manually decode token** (advanced):
+```python
+from api.utils.auth import decode_token
+
+payload = decode_token(token_string)
+user_id = payload.get("sub")
+token_type = payload.get("type")  # "access" or "refresh"
+```
+
+### Important Notes for Future Development
+
+1. **Token Blacklist**: Currently not implemented. For production, implement Redis-based token blacklist for logout.
+
+2. **Password Reset**: Not yet implemented. Will need:
+   - POST /auth/forgot-password (send email with reset link)
+   - POST /auth/reset-password (verify token, update password)
+
+3. **Email Verification**: Not yet implemented. Consider adding:
+   - `email_verified: bool` field to User model
+   - Verification token generation
+   - Email verification endpoint
+
+4. **OAuth Integration**: Not yet implemented. Placeholder in User model:
+   - `oauth_provider: str (nullable)`
+   - `oauth_id: str (nullable)`
+
+5. **Rate Limiting**: Consider adding rate limiting to auth endpoints to prevent brute force attacks.
+
+6. **Security Best Practices**:
+   - Never log passwords or tokens
+   - Always use HTTPS in production
+   - Rotate JWT_SECRET_KEY periodically
+   - Set secure cookie flags if using cookies
+   - Implement CORS properly (already done)
+
+### Troubleshooting
+
+**Issue**: "JWT_SECRET_KEY environment variable must be set"
+- **Fix**: Add to docker-compose.yml environment section
+
+**Issue**: "password cannot be longer than 72 bytes"
+- **Fix**: Already handled in hash_password() and verify_password() functions
+- BCrypt version must be pinned to 4.0.1 (ChromaDB conflict)
+
+**Issue**: Token expired (401)
+- **Fix**: Use refresh token to get new access token via POST /auth/refresh
+
+**Issue**: "User not found" (401)
+- **Fix**: User may have been deleted, or token contains invalid user_id
+
+---
+
 ## Status Tracking
 
-**Current Phase**: Week 0 - Setup Complete ✅
-**Next Milestone**: Week 1 - Database & Auth
+**Current Phase**: Week 1 - Database & Auth Complete ✅
+**Next Milestone**: Week 3 - Content Scraping
 **Target**: Week 8 - Backend MVP Complete
 
 **Key Docs**:
@@ -490,8 +727,14 @@ mypy backend/                           # Type check
 - Setup Guide: `DEVELOPMENT_SETUP.md`
 - Architecture: `docs/architecture/overview.md`
 
+**Completed Features**:
+- ✅ Database schema with Alembic migrations
+- ✅ JWT authentication (signup, login, refresh, protected routes)
+- ✅ User management with BCrypt password hashing
+- ✅ Request logging middleware
+
 ---
 
-**Last Updated**: 2025-10-23
+**Last Updated**: 2025-10-24
 **Project**: UP2D8
 **Stack**: Python (FastAPI), PostgreSQL, Redis, Ollama, ChromaDB

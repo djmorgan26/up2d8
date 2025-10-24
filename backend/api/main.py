@@ -3,9 +3,17 @@ UP2D8 FastAPI Application
 Main entry point for the API
 """
 import os
-from fastapi import FastAPI
+import time
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import structlog
+
+# Import routers
+from api.routers import auth
+
+# Configure structured logging
+logger = structlog.get_logger()
 
 # Load environment variables
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
@@ -49,6 +57,33 @@ app.add_middleware(
 )
 
 
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """
+    Log all HTTP requests with timing information.
+    """
+    start_time = time.time()
+
+    # Process request
+    response = await call_next(request)
+
+    # Calculate duration
+    duration = time.time() - start_time
+
+    # Log request details
+    logger.info(
+        "http_request",
+        method=request.method,
+        path=request.url.path,
+        status_code=response.status_code,
+        duration_ms=round(duration * 1000, 2),
+        client_ip=request.client.host if request.client else None,
+    )
+
+    return response
+
+
 # Health check endpoint
 @app.get("/health", tags=["Health"])
 async def health_check():
@@ -77,10 +112,10 @@ async def root():
     }
 
 
-# TODO: Add routers when implementing features
-# Example:
-# from api.routers import auth, users, articles, digests, chat
-# app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+# Include routers
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+
+# TODO: Add more routers as features are implemented
 # app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
 # app.include_router(articles.router, prefix="/api/v1/articles", tags=["Articles"])
 # app.include_router(digests.router, prefix="/api/v1/digests", tags=["Digests"])
