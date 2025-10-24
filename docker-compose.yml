@@ -71,51 +71,54 @@ services:
     networks:
       - up2d8
 
-  # Celery Worker (optional - uncomment when needed)
-  # worker:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile
-  #   container_name: up2d8-worker
-  #   command: celery -A workers.celery_app worker --loglevel=info
-  #   volumes:
-  #     - ./backend:/app
-  #     - ./data:/app/data
-  #   environment:
-  #     - DATABASE_URL=postgresql://up2d8:up2d8_dev_password@postgres:5432/up2d8
-  #     - REDIS_URL=redis://redis:6379/0
-  #     - LLM_PROVIDER=ollama
-  #     - OLLAMA_BASE_URL=http://host.docker.internal:11434
-  #     - EMBEDDING_PROVIDER=sentence-transformers
-  #     - VECTOR_DB_PROVIDER=chroma
-  #     - CHROMA_PATH=/app/data/chroma
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - up2d8
+  # Celery Worker (for background tasks: scraping, processing)
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: up2d8-worker
+    command: celery -A workers.celery_app worker --loglevel=info --concurrency=4
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+    environment:
+      - DATABASE_URL=postgresql://up2d8:up2d8_dev_password@postgres:5432/up2d8
+      - REDIS_URL=redis://redis:6379/0
+      - LLM_PROVIDER=ollama
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - EMBEDDING_PROVIDER=sentence-transformers
+      - VECTOR_DB_PROVIDER=chroma
+      - CHROMA_PATH=/app/data/chroma
+      - EMAIL_PROVIDER=console
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - up2d8
 
-  # Celery Beat (scheduled tasks - optional)
-  # beat:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile
-  #   container_name: up2d8-beat
-  #   command: celery -A workers.celery_app beat --loglevel=info
-  #   volumes:
-  #     - ./backend:/app
-  #   environment:
-  #     - DATABASE_URL=postgresql://up2d8:up2d8_dev_password@postgres:5432/up2d8
-  #     - REDIS_URL=redis://redis:6379/0
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - up2d8
+  # Celery Beat (scheduled tasks)
+  beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: up2d8-beat
+    command: celery -A workers.celery_app beat --loglevel=info
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql://up2d8:up2d8_dev_password@postgres:5432/up2d8
+      - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - up2d8
 
   # pgAdmin (optional - database management UI)
   pgadmin:

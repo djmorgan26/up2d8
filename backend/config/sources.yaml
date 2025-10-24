@@ -1,0 +1,212 @@
+# Content Sources Configuration for UP2D8
+# Defines all sources for content scraping
+
+sources:
+  # ============================================================================
+  # RSS Feeds
+  # ============================================================================
+
+  - id: openai_blog
+    name: OpenAI Blog
+    type: rss
+    url: https://openai.com/blog/rss/
+    check_interval_hours: 2
+    priority: high
+    authority_score: 95
+    companies: [openai]
+    industries: [ai, machine_learning]
+    active: true
+
+  - id: anthropic_blog
+    name: Anthropic News
+    type: rss
+    url: https://www.anthropic.com/news/rss.xml
+    check_interval_hours: 2
+    priority: high
+    authority_score: 95
+    companies: [anthropic]
+    industries: [ai, machine_learning, safety]
+    active: true
+
+  - id: google_ai_blog
+    name: Google AI Blog
+    type: rss
+    url: https://ai.googleblog.com/feeds/posts/default
+    check_interval_hours: 3
+    priority: high
+    authority_score: 90
+    companies: [google]
+    industries: [ai, machine_learning, research]
+    active: true
+
+  - id: microsoft_ai_blog
+    name: Microsoft AI Blog
+    type: rss
+    url: https://blogs.microsoft.com/ai/feed/
+    check_interval_hours: 3
+    priority: high
+    authority_score: 90
+    companies: [microsoft]
+    industries: [ai, machine_learning, cloud]
+    active: true
+
+  - id: nvidia_blog
+    name: NVIDIA AI Blog
+    type: rss
+    url: https://blogs.nvidia.com/feed/
+    check_interval_hours: 6
+    priority: medium
+    authority_score: 85
+    companies: [nvidia]
+    industries: [ai, hardware, gpu]
+    active: true
+
+  # ============================================================================
+  # GitHub Releases (API)
+  # ============================================================================
+
+  - id: openai_github
+    name: OpenAI GitHub
+    type: github
+    url: https://api.github.com/repos/openai/openai-python
+    config:
+      repo: openai/openai-python
+      events: [release, major_commit]
+    check_interval_hours: 6
+    priority: medium
+    authority_score: 90
+    companies: [openai]
+    industries: [ai, developer_tools]
+    active: true
+
+  - id: anthropic_github
+    name: Anthropic GitHub
+    type: github
+    url: https://api.github.com/repos/anthropics/anthropic-sdk-python
+    config:
+      repo: anthropics/anthropic-sdk-python
+      events: [release]
+    check_interval_hours: 6
+    priority: medium
+    authority_score: 90
+    companies: [anthropic]
+    industries: [ai, developer_tools]
+    active: true
+
+  # ============================================================================
+  # Web Scraping (for sources without RSS)
+  # ============================================================================
+
+  - id: meta_ai_news
+    name: Meta AI News
+    type: scrape
+    url: https://ai.meta.com/blog/
+    config:
+      selectors:
+        article: ".blog-post"
+        title: "h2.title"
+        link: "a.read-more"
+        date: "time.published"
+        summary: ".excerpt"
+    check_interval_hours: 6
+    priority: medium
+    authority_score: 85
+    companies: [meta]
+    industries: [ai, social_media]
+    active: true
+
+  - id: deepmind_blog
+    name: DeepMind Blog
+    type: scrape
+    url: https://www.deepmind.com/blog
+    config:
+      selectors:
+        article: "article.post"
+        title: "h3"
+        link: "a"
+        date: ".date"
+    check_interval_hours: 6
+    priority: high
+    authority_score: 95
+    companies: [google, deepmind]
+    industries: [ai, research]
+    active: true
+
+  # ============================================================================
+  # News APIs (for aggregated tech news)
+  # ============================================================================
+
+  - id: techcrunch_ai
+    name: TechCrunch AI
+    type: rss
+    url: https://techcrunch.com/category/artificial-intelligence/feed/
+    check_interval_hours: 3
+    priority: medium
+    authority_score: 75
+    companies: []  # Multiple companies covered
+    industries: [ai, news, startups]
+    active: true
+
+  - id: venturebeat_ai
+    name: VentureBeat AI
+    type: rss
+    url: https://venturebeat.com/category/ai/feed/
+    check_interval_hours: 3
+    priority: medium
+    authority_score: 75
+    companies: []
+    industries: [ai, news, business]
+    active: true
+
+  - id: mit_tech_review_ai
+    name: MIT Technology Review AI
+    type: rss
+    url: https://www.technologyreview.com/topic/artificial-intelligence/feed
+    check_interval_hours: 6
+    priority: medium
+    authority_score: 85
+    companies: []
+    industries: [ai, research, analysis]
+    active: true
+
+  # ============================================================================
+  # Research & Papers (Arxiv)
+  # ============================================================================
+
+  - id: arxiv_cs_ai
+    name: arXiv CS.AI
+    type: api
+    url: http://export.arxiv.org/api/query
+    config:
+      search_query: "cat:cs.AI"
+      sort_by: "submittedDate"
+      max_results: 20
+    check_interval_hours: 12
+    priority: low
+    authority_score: 95
+    companies: []
+    industries: [ai, research, academic]
+    active: false  # Can be enabled for research-focused users
+
+  # ============================================================================
+  # Social Media (Future - requires API keys)
+  # ============================================================================
+
+  # Twitter/X tracking can be added here with Bearer tokens
+  # Reddit r/MachineLearning, r/artificial, etc.
+
+# Configuration metadata
+config:
+  version: "1.0"
+  last_updated: "2025-10-24"
+  total_sources: 14
+  active_sources: 13
+
+  # Default settings
+  defaults:
+    check_interval_hours: 6
+    priority: medium
+    authority_score: 50
+    retry_attempts: 3
+    timeout_seconds: 30
+    user_agent: "UP2D8Bot/1.0 (+https://up2d8.ai/bot)"
