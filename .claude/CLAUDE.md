@@ -28,6 +28,7 @@ docs/
 │
 ├── architecture/          # System design documentation
 │   ├── overview.md       # High-level architecture
+│   ├── conversational-ai-agent.md  # LangChain/LangGraph agent (Weeks 10-11)
 │   ├── services/         # Service-specific docs
 │   │   ├── llm-provider.md
 │   │   ├── embeddings.md
@@ -726,12 +727,21 @@ token_type = payload.get("type")  # "access" or "refresh"
 - MVP Timeline: `docs/planning/mvp-roadmap.md`
 - Setup Guide: `DEVELOPMENT_SETUP.md`
 - Architecture: `docs/architecture/overview.md`
+- **Conversational AI Agent (Planned for Weeks 10-11)**: `docs/architecture/conversational-ai-agent.md`
 
 **Completed Features**:
 - ✅ Database schema with Alembic migrations
 - ✅ JWT authentication (signup, login, refresh, protected routes)
 - ✅ User management with BCrypt password hashing
 - ✅ Request logging middleware
+
+**Planned Features (Documented)**:
+- 📋 Conversational AI Agent with LangChain/LangGraph (Weeks 10-11)
+  - 3-layer memory system (digest context, short-term, long-term)
+  - RAG over user article history
+  - Web search integration (Brave Search API)
+  - Link extraction and embedding
+  - Streaming WebSocket responses with citations
 
 ---
 
