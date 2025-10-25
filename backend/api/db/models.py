@@ -602,3 +602,89 @@ class UserActivity(Base):
         Index("idx_activity_type", "event_type", created_at.desc()),
         Index("idx_activity_session", "session_id"),
     )
+
+
+class ArticleFeedback(Base):
+    """User feedback on articles (thumbs up/down, relevance ratings)."""
+
+    __tablename__ = "article_feedback"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
+    user_id = Column(UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    article_id = Column(UUID(as_uuid=False), ForeignKey("articles.id", ondelete="CASCADE"), nullable=False)
+    digest_id = Column(UUID(as_uuid=False), ForeignKey("digests.id", ondelete="CASCADE"), nullable=True)
+
+    # Feedback type
+    feedback_type = Column(String(20), nullable=False)  # 'thumbs_up', 'thumbs_down', 'not_relevant'
+
+    # Optional text feedback
+    feedback_text = Column(Text, nullable=True)
+
+    # Context
+    feedback_source = Column(String(20), default="email")  # 'email', 'web', 'api'
+
+    # Timestamp
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            "feedback_type IN ('thumbs_up', 'thumbs_down', 'not_relevant')",
+            name="check_feedback_type",
+        ),
+        Index("idx_article_feedback_user", "user_id", created_at.desc()),
+        Index("idx_article_feedback_article", "article_id"),
+        Index("idx_article_feedback_digest", "digest_id"),
+        Index("idx_article_feedback_type", "feedback_type"),
+        Index("idx_article_feedback_unique", "user_id", "article_id", "digest_id", unique=True),
+    )
+
+
+class UserPreferenceProfile(Base):
+    """Learned user preferences based on behavior and feedback."""
+
+    __tablename__ = "user_preference_profile"
+
+    user_id = Column(UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+
+    # Learned interest weights (JSONB for flexibility)
+    company_weights = Column(JSONB, default={})  # {"OpenAI": 0.85, "Anthropic": 0.72}
+    industry_weights = Column(JSONB, default={})  # {"AI": 0.90, "Cloud Computing": 0.60}
+    topic_weights = Column(JSONB, default={})  # {"LLMs": 0.95, "GPUs": 0.70}
+
+    # Metrics
+    total_feedback_count = Column(Integer, default=0)
+    positive_feedback_count = Column(Integer, default=0)
+    negative_feedback_count = Column(Integer, default=0)
+    avg_engagement_score = Column(DECIMAL(5, 2), default=0)
+
+    # Timestamps
+    last_updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+
+class UserEngagementMetrics(Base):
+    """Aggregated engagement metrics per user."""
+
+    __tablename__ = "user_engagement_metrics"
+
+    user_id = Column(UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+
+    # Email metrics
+    total_emails_sent = Column(Integer, default=0)
+    total_emails_opened = Column(Integer, default=0)
+    total_links_clicked = Column(Integer, default=0)
+    total_articles_clicked = Column(Integer, default=0)
+    avg_articles_clicked_per_digest = Column(DECIMAL(5, 2), default=0)
+
+    # Engagement rates
+    open_rate = Column(DECIMAL(5, 4), default=0)  # e.g., 0.6500 = 65%
+    click_rate = Column(DECIMAL(5, 4), default=0)
+    engagement_score = Column(DECIMAL(5, 2), default=0)  # composite score
+
+    # Time-based
+    avg_time_to_open_seconds = Column(Integer, default=0)
+
+    # Last calculated
+    last_calculated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())

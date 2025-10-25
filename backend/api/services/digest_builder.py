@@ -12,6 +12,7 @@ from sqlalchemy import and_, func
 import structlog
 
 from api.db.models import Article, User, UserPreference, Source
+from api.services.relevance_scorer import score_articles_for_digest
 
 logger = structlog.get_logger()
 
@@ -97,37 +98,37 @@ class DigestBuilder:
         # Apply personalization filters if preferences exist
         personalized = False
         if preferences:
-            # Filter by user's preferred companies
-            if preferences.preferred_companies:
+            # Filter by user's subscribed companies (using PostgreSQL && overlap operator)
+            if preferences.subscribed_companies:
                 query = query.filter(
-                    func.array_overlap(Article.companies, preferences.preferred_companies)
+                    Article.companies.op('&&')(preferences.subscribed_companies)
                 )
                 personalized = True
 
-            # Filter by user's preferred industries
-            if preferences.preferred_industries:
+            # Filter by user's subscribed industries (using PostgreSQL && overlap operator)
+            if preferences.subscribed_industries:
                 query = query.filter(
-                    func.array_overlap(Article.industries, preferences.preferred_industries)
+                    Article.industries.op('&&')(preferences.subscribed_industries)
                 )
                 personalized = True
 
-        # Order by published date (newest first) and limit
-        articles = (
+        # Get candidate articles (fetch more than needed for scoring)
+        candidate_articles = (
             query.order_by(Article.published_at.desc())
-            .limit(max_articles)
+            .limit(max_articles * 3)  # Fetch 3x to have pool for scoring
             .all()
         )
 
         logger.info(
-            f"Found {len(articles)} articles for digest",
+            f"Found {len(candidate_articles)} candidate articles for digest",
             user_id=user.id,
             personalized=personalized,
         )
 
         # If no personalized results, get top articles from high-authority sources
-        if len(articles) == 0 and personalized:
+        if len(candidate_articles) == 0 and personalized:
             logger.info("No personalized articles found, falling back to top articles")
-            articles = (
+            candidate_articles = (
                 self.db.query(Article)
                 .join(Source, Article.source_id == Source.id)
                 .filter(
@@ -138,16 +139,28 @@ class DigestBuilder:
                     )
                 )
                 .order_by(Source.authority_score.desc(), Article.published_at.desc())
-                .limit(max_articles)
+                .limit(max_articles * 2)
                 .all()
             )
             personalized = False
+
+        # Score articles using relevance scorer
+        scored_articles = score_articles_for_digest(self.db, user, candidate_articles)
+
+        # Take top N by relevance score
+        articles = [article for article, scores in scored_articles[:max_articles]]
+        article_scores = {
+            article.id: scores for article, scores in scored_articles[:max_articles]
+        }
 
         # Format articles for digest
         formatted_articles = []
         for article in articles:
             # Get source info
             source = self.db.query(Source).filter(Source.id == article.source_id).first()
+
+            # Get relevance scores for this article
+            scores = article_scores.get(article.id, {})
 
             formatted_articles.append({
                 "id": article.id,
@@ -159,6 +172,8 @@ class DigestBuilder:
                 "companies": article.companies or [],
                 "industries": article.industries or [],
                 "author": article.author,
+                "relevance_score": scores.get("total_score", 0),
+                "scoring_factors": scores,  # Include all scoring components
             })
 
         digest = {

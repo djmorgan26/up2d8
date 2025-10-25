@@ -141,6 +141,26 @@ def generate_user_digest(self, user_id: str) -> Dict[str, Any]:
                 "timestamp": datetime.utcnow().isoformat(),
             }
 
+        # Create Digest record in database for tracking
+        from api.db.models import Digest
+        import uuid as uuid_lib
+
+        digest_record = Digest(
+            id=str(uuid_lib.uuid4()),
+            user_id=user.id,
+            digest_date=datetime.utcnow().date(),
+            scheduled_for=datetime.utcnow(),
+            article_count=digest_data['article_count'],
+            personalized_intro=None,
+            delivery_status="pending",
+        )
+        db.add(digest_record)
+        db.commit()
+        db.refresh(digest_record)
+
+        # Add digest_id to digest_data for email template
+        digest_data['digest_id'] = digest_record.id
+
         # Send email
         digest_service = get_digest_service()
 
@@ -153,12 +173,23 @@ def generate_user_digest(self, user_id: str) -> Dict[str, Any]:
             digest_service.send_digest(digest_data)
         )
 
+        # Update digest record based on success
+        if success:
+            digest_record.delivery_status = "sent"
+            digest_record.sent_at = datetime.utcnow()
+        else:
+            digest_record.delivery_status = "failed"
+            digest_record.delivery_error = "Email sending failed"
+
+        db.commit()
+
         result = {
             "success": success,
             "user_id": user_id,
             "user_email": user.email,
             "article_count": digest_data['article_count'],
             "personalized": digest_data['personalized'],
+            "digest_id": digest_record.id,
             "timestamp": datetime.utcnow().isoformat(),
         }
 
@@ -166,7 +197,8 @@ def generate_user_digest(self, user_id: str) -> Dict[str, Any]:
             logger.info(
                 f"Digest sent to {user.email}",
                 article_count=digest_data['article_count'],
-                personalized=digest_data['personalized']
+                personalized=digest_data['personalized'],
+                digest_id=digest_record.id
             )
         else:
             logger.error(f"Failed to send digest to {user.email}")
@@ -190,6 +222,12 @@ def generate_scheduled_digests(self, hour: int = None) -> Dict[str, Any]:
     It checks which users should receive their digest at this hour
     and queues individual digest generation tasks.
 
+    The task uses timezone-aware logic:
+    1. Get current UTC hour
+    2. For each active user with preferences:
+       - Convert their local delivery time to UTC
+       - If it matches current UTC hour, queue digest
+
     Args:
         hour: Hour of day (0-23). If None, uses current UTC hour.
 
@@ -202,47 +240,79 @@ def generate_scheduled_digests(self, hour: int = None) -> Dict[str, Any]:
             "timestamp": str
         }
     """
+    from datetime import timezone as dt_timezone
+    import pytz
+
     db = SessionLocal()
 
     try:
         if hour is None:
             hour = datetime.utcnow().hour
 
-        logger.info(f"Generating scheduled digests for hour {hour}")
+        logger.info(f"Generating scheduled digests for UTC hour {hour}")
 
-        # Find users scheduled for this hour
-        # For MVP, we'll send to all active users
-        # In production, you'd check UserPreference.digest_time
-        users = (
-            db.query(User)
+        # Find users who should receive digest at this hour
+        # Get all active users with preferences
+        users_with_prefs = (
+            db.query(User, UserPreference)
+            .join(UserPreference, User.id == UserPreference.user_id)
             .filter(User.status == "active")
+            .filter(UserPreference.digest_frequency == "daily")
             .all()
         )
 
-        logger.info(f"Found {len(users)} active users")
+        logger.info(f"Found {len(users_with_prefs)} active users with daily digest preference")
 
-        # Queue individual digest tasks
+        # Queue individual digest tasks for users scheduled at this hour
         tasks_queued = []
-        for user in users:
-            task = generate_user_digest.delay(user.id)
-            tasks_queued.append({
-                "user_id": user.id,
-                "user_email": user.email,
-                "task_id": task.id
-            })
+        for user, preferences in users_with_prefs:
+            try:
+                # Get user's timezone and delivery time
+                user_tz = pytz.timezone(preferences.timezone)
+                delivery_time = preferences.delivery_time
+
+                # Get current time in user's timezone
+                current_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
+                current_user_time = current_utc.astimezone(user_tz)
+
+                # Check if current hour matches delivery hour in user's timezone
+                if current_user_time.hour == delivery_time.hour:
+                    # Check if today is in delivery_days (1=Mon, 7=Sun)
+                    weekday = current_user_time.isoweekday()
+                    if weekday in preferences.delivery_days:
+                        task = generate_user_digest.delay(user.id)
+                        tasks_queued.append({
+                            "user_id": user.id,
+                            "user_email": user.email,
+                            "user_timezone": preferences.timezone,
+                            "user_local_time": current_user_time.strftime("%H:%M"),
+                            "task_id": task.id
+                        })
+                        logger.info(
+                            f"Queued digest for {user.email}",
+                            user_timezone=preferences.timezone,
+                            user_local_time=current_user_time.strftime("%H:%M"),
+                            weekday=weekday
+                        )
+            except Exception as user_error:
+                logger.error(
+                    f"Error processing user {user.email}: {user_error}",
+                    exc_info=True
+                )
+                continue
 
         result = {
             "success": True,
-            "hour": hour,
-            "users_found": len(users),
+            "utc_hour": hour,
+            "users_checked": len(users_with_prefs),
             "tasks_queued": len(tasks_queued),
             "task_ids": [t["task_id"] for t in tasks_queued],
             "timestamp": datetime.utcnow().isoformat(),
         }
 
         logger.info(
-            f"Queued {len(tasks_queued)} digest generation tasks",
-            hour=hour
+            f"Queued {len(tasks_queued)} digest generation tasks for UTC hour {hour}",
+            users_checked=len(users_with_prefs)
         )
 
         return result
