@@ -278,20 +278,22 @@
 
                 <a href="{{ article.url }}" class="read-more" target="_blank">Read Full Article →</a>
 
-                <!-- Feedback Buttons -->
+                <!-- Feedback Buttons (only show if user_id exists) -->
+                {% if user_id %}
                 <div class="feedback-buttons">
                     <span class="feedback-label">Was this helpful?</span>
-                    <a href="https://up2d8.ai/api/v1/feedback/track?article_id={{ article.id }}&digest_id={{ digest_id }}&user_id={{ user_id }}&type=thumbs_up"
+                    <a href="{{ base_url }}/api/v1/feedback/track?article_id={{ article.id }}&digest_id={{ digest_id }}&user_id={{ user_id }}&type=thumbs_up"
                        class="feedback-btn feedback-btn-positive"
                        target="_blank">
                         👍 Helpful
                     </a>
-                    <a href="https://up2d8.ai/api/v1/feedback/track?article_id={{ article.id }}&digest_id={{ digest_id }}&user_id={{ user_id }}&type=thumbs_down"
+                    <a href="{{ base_url }}/api/v1/feedback/track?article_id={{ article.id }}&digest_id={{ digest_id }}&user_id={{ user_id }}&type=thumbs_down"
                        class="feedback-btn feedback-btn-negative"
                        target="_blank">
                         👎 Not Relevant
                     </a>
                 </div>
+                {% endif %}
             </div>
             {% endfor %}
         {% else %}

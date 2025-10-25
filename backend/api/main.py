@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 import structlog
 
 # Import routers
-from api.routers import auth, scraping, preferences, feedback
+from api.routers import auth, scraping, preferences, feedback, analytics
 
 # Configure structured logging
 logger = structlog.get_logger()
@@ -117,6 +117,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(preferences.router)  # Prefix already defined in router
 app.include_router(scraping.router)  # Tags already defined in router
 app.include_router(feedback.router)  # Prefix already defined in router
+app.include_router(analytics.router)  # Prefix already defined in router
 
 # TODO: Add more routers as features are implemented
 # app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])

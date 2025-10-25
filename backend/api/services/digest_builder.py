@@ -176,6 +176,10 @@ class DigestBuilder:
                 "scoring_factors": scores,  # Include all scoring components
             })
 
+        # Get base URL from environment (for feedback links)
+        import os
+        base_url = os.getenv("BASE_URL", "http://localhost:8000")
+
         digest = {
             "user_id": user.id,
             "user_email": user.email,
@@ -185,6 +189,7 @@ class DigestBuilder:
             "articles": formatted_articles,
             "article_count": len(formatted_articles),
             "personalized": personalized,
+            "base_url": base_url,
         }
 
         logger.info(
@@ -197,7 +202,7 @@ class DigestBuilder:
 
     def build_test_digest(self, user_email: str, user_name: str = "User") -> Dict[str, Any]:
         """
-        Build a test digest with recent articles (no user object needed).
+        Build a test digest with recent articles (using real user if found).
 
         Args:
             user_email: Email to send test to
@@ -207,6 +212,16 @@ class DigestBuilder:
             Digest dictionary
         """
         logger.info(f"Building test digest for {user_email}")
+
+        # Try to find the user by email
+        user = self.db.query(User).filter(User.email == user_email).first()
+        if user:
+            logger.info(f"Found user {user.id} for test digest")
+            user_id = user.id
+            user_name = user.full_name or user_name
+        else:
+            logger.warning(f"User {user_email} not found, creating test digest without feedback tracking")
+            user_id = None
 
         # Get recent completed articles
         cutoff_time = datetime.utcnow() - timedelta(hours=48)  # Last 2 days
@@ -245,8 +260,12 @@ class DigestBuilder:
                 "author": article.author,
             })
 
+        # Get base URL from environment (for feedback links)
+        import os
+        base_url = os.getenv("BASE_URL", "http://localhost:8000")
+
         digest = {
-            "user_id": "test",
+            "user_id": user_id,  # Now uses real user ID if found
             "user_email": user_email,
             "user_name": user_name,
             "digest_date": datetime.utcnow().strftime("%Y-%m-%d"),
@@ -255,6 +274,8 @@ class DigestBuilder:
             "article_count": len(formatted_articles),
             "personalized": False,
             "is_test": True,
+            "base_url": base_url,
+            "digest_id": "test",  # Test digests don't have a real digest record
         }
 
         return digest

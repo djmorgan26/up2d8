@@ -20,6 +20,7 @@ from api.models.feedback import (
     UserPreferenceProfileResponse,
 )
 from api.utils.auth import get_current_user
+from api.services.analytics_tracker import get_analytics_tracker
 
 logger = structlog.get_logger()
 
@@ -90,6 +91,9 @@ async def track_feedback_from_email(
     elif feedback_type == "down":
         feedback_type = "thumbs_down"
 
+    # Handle test digest_id (set to None for test digests)
+    actual_digest_id = None if digest_id == "test" else digest_id
+
     # Check if feedback already exists
     existing_feedback = (
         db.query(ArticleFeedback)
@@ -97,7 +101,7 @@ async def track_feedback_from_email(
             and_(
                 ArticleFeedback.user_id == user_id,
                 ArticleFeedback.article_id == article_id,
-                ArticleFeedback.digest_id == digest_id if digest_id else ArticleFeedback.digest_id.is_(None),
+                ArticleFeedback.digest_id == actual_digest_id if actual_digest_id else ArticleFeedback.digest_id.is_(None),
             )
         )
         .first()
@@ -114,7 +118,7 @@ async def track_feedback_from_email(
             id=str(uuid.uuid4()),
             user_id=user_id,
             article_id=article_id,
-            digest_id=digest_id,
+            digest_id=actual_digest_id,  # Use actual_digest_id (None for test digests)
             feedback_type=feedback_type,
             feedback_source="email",
         )
@@ -123,6 +127,10 @@ async def track_feedback_from_email(
 
     # Update user preferences
     _update_user_preferences_from_feedback(db, user_id, article, feedback_type)
+
+    # Track analytics
+    analytics_tracker = get_analytics_tracker(db)
+    analytics_tracker.track_feedback(article_id, user_id, feedback_type)
 
     # Return thank you page
     emoji = "👍" if feedback_type == "thumbs_up" else "👎"

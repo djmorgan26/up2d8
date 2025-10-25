@@ -1,0 +1,395 @@
+"""
+Analytics Tracking Service
+
+Aggregates user interactions to provide insights into:
+- Source performance
+- Company/industry popularity
+- Content quality
+- User engagement patterns
+"""
+
+from typing import List, Dict, Any, Optional
+from datetime import datetime, date
+from sqlalchemy.orm import Session
+from sqlalchemy import func, and_, text
+import structlog
+
+from api.db.models import (
+    Article,
+    ArticleFeedback,
+    Source,
+    User,
+    UserPreferenceProfile,
+)
+
+logger = structlog.get_logger()
+
+
+class AnalyticsTracker:
+    """
+    Tracks and aggregates analytics data for business insights.
+
+    This service is called whenever key events occur:
+    - Article delivered in digest
+    - User provides feedback
+    - User clicks article
+    - Digest sent
+    """
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def track_article_delivered(
+        self,
+        article_id: str,
+        user_id: str,
+        relevance_score: float = 0,
+    ) -> None:
+        """
+        Track when an article is delivered to a user in a digest.
+        Updates article_analytics, source_analytics, and daily_analytics.
+        """
+        try:
+            # Get article details
+            article = self.db.query(Article).filter(Article.id == article_id).first()
+            if not article:
+                logger.warning(f"Article {article_id} not found for delivery tracking")
+                return
+
+            # Update article_analytics
+            self.db.execute(
+                """
+                INSERT INTO article_analytics (article_id, times_delivered, unique_users_delivered, avg_relevance_score, last_updated)
+                VALUES (:article_id, 1, 1, :relevance_score, NOW())
+                ON CONFLICT (article_id) DO UPDATE SET
+                    times_delivered = article_analytics.times_delivered + 1,
+                    unique_users_delivered = article_analytics.unique_users_delivered + 1,
+                    avg_relevance_score = (article_analytics.avg_relevance_score * article_analytics.times_delivered + :relevance_score) / (article_analytics.times_delivered + 1),
+                    last_updated = NOW()
+                """,
+                {"article_id": article_id, "relevance_score": relevance_score}
+            )
+
+            # Update source_analytics
+            if article.source_id:
+                self.db.execute(
+                    """
+                    INSERT INTO source_analytics (source_id, total_articles_delivered, last_updated)
+                    VALUES (:source_id, 1, NOW())
+                    ON CONFLICT (source_id) DO UPDATE SET
+                        total_articles_delivered = source_analytics.total_articles_delivered + 1,
+                        last_updated = NOW()
+                    """,
+                    {"source_id": article.source_id}
+                )
+
+            # Update daily_analytics
+            today = date.today()
+            self.db.execute(
+                """
+                INSERT INTO daily_analytics (date, total_articles_delivered, created_at)
+                VALUES (:date, 1, NOW())
+                ON CONFLICT (date) DO UPDATE SET
+                    total_articles_delivered = daily_analytics.total_articles_delivered + 1
+                """,
+                {"date": today}
+            )
+
+            self.db.commit()
+            logger.info(
+                "Tracked article delivery",
+                article_id=article_id,
+                user_id=user_id,
+                source_id=article.source_id,
+            )
+
+        except Exception as e:
+            logger.error(f"Error tracking article delivery: {e}", exc_info=True)
+            self.db.rollback()
+
+    def track_feedback(
+        self,
+        article_id: str,
+        user_id: str,
+        feedback_type: str,
+    ) -> None:
+        """
+        Track user feedback on an article.
+        Updates multiple analytics tables based on article metadata.
+        """
+        try:
+            # Get article details
+            article = self.db.query(Article).filter(Article.id == article_id).first()
+            if not article:
+                logger.warning(f"Article {article_id} not found for feedback tracking")
+                return
+
+            is_positive = feedback_type == "thumbs_up"
+            is_negative = feedback_type == "thumbs_down"
+
+            # Update article_analytics
+            if is_positive:
+                self.db.execute(
+                    """
+                    UPDATE article_analytics
+                    SET positive_feedback_count = positive_feedback_count + 1,
+                        engagement_rate = (positive_feedback_count + 1 + click_count)::decimal / NULLIF(times_delivered, 0),
+                        last_updated = NOW()
+                    WHERE article_id = :article_id
+                    """,
+                    {"article_id": article_id}
+                )
+            elif is_negative:
+                self.db.execute(
+                    """
+                    UPDATE article_analytics
+                    SET negative_feedback_count = negative_feedback_count + 1,
+                        last_updated = NOW()
+                    WHERE article_id = :article_id
+                    """,
+                    {"article_id": article_id}
+                )
+
+            # Update source_analytics
+            if article.source_id:
+                if is_positive:
+                    self.db.execute(
+                        """
+                        UPDATE source_analytics
+                        SET total_positive_feedback = total_positive_feedback + 1,
+                            engagement_rate = (total_positive_feedback + 1 + total_clicks)::decimal / NULLIF(total_articles_delivered, 0),
+                            last_updated = NOW()
+                        WHERE source_id = :source_id
+                        """,
+                        {"source_id": article.source_id}
+                    )
+                elif is_negative:
+                    self.db.execute(
+                        """
+                        UPDATE source_analytics
+                        SET total_negative_feedback = total_negative_feedback + 1,
+                            last_updated = NOW()
+                        WHERE source_id = :source_id
+                        """,
+                        {"source_id": article.source_id}
+                    )
+
+            # Update company_analytics for each company mentioned
+            if article.companies:
+                for company in article.companies:
+                    if is_positive:
+                        self.db.execute(
+                            """
+                            INSERT INTO company_analytics (company_name, total_mentions, total_positive_feedback, last_updated)
+                            VALUES (:company_name, 1, 1, NOW())
+                            ON CONFLICT (company_name) DO UPDATE SET
+                                total_positive_feedback = company_analytics.total_positive_feedback + 1,
+                                sentiment_score = company_analytics.total_positive_feedback + 1::decimal / NULLIF(company_analytics.total_positive_feedback + company_analytics.total_negative_feedback + 1, 0),
+                                popularity_score = (company_analytics.total_positive_feedback + 1) * 2 - company_analytics.total_negative_feedback,
+                                last_updated = NOW()
+                            """,
+                            {"company_name": company.lower()}
+                        )
+                    elif is_negative:
+                        self.db.execute(
+                            """
+                            INSERT INTO company_analytics (company_name, total_mentions, total_negative_feedback, last_updated)
+                            VALUES (:company_name, 1, 1, NOW())
+                            ON CONFLICT (company_name) DO UPDATE SET
+                                total_negative_feedback = company_analytics.total_negative_feedback + 1,
+                                sentiment_score = company_analytics.total_positive_feedback::decimal / NULLIF(company_analytics.total_positive_feedback + company_analytics.total_negative_feedback + 1, 0),
+                                popularity_score = company_analytics.total_positive_feedback * 2 - (company_analytics.total_negative_feedback + 1),
+                                last_updated = NOW()
+                            """,
+                            {"company_name": company.lower()}
+                        )
+
+            # Update industry_analytics for each industry
+            if article.industries:
+                for industry in article.industries:
+                    if is_positive:
+                        self.db.execute(
+                            """
+                            INSERT INTO industry_analytics (industry_name, total_mentions, total_positive_feedback, last_updated)
+                            VALUES (:industry_name, 1, 1, NOW())
+                            ON CONFLICT (industry_name) DO UPDATE SET
+                                total_positive_feedback = industry_analytics.total_positive_feedback + 1,
+                                sentiment_score = industry_analytics.total_positive_feedback + 1::decimal / NULLIF(industry_analytics.total_positive_feedback + industry_analytics.total_negative_feedback + 1, 0),
+                                popularity_score = (industry_analytics.total_positive_feedback + 1) * 2 - industry_analytics.total_negative_feedback,
+                                last_updated = NOW()
+                            """,
+                            {"industry_name": industry.lower()}
+                        )
+                    elif is_negative:
+                        self.db.execute(
+                            """
+                            INSERT INTO industry_analytics (industry_name, total_mentions, total_negative_feedback, last_updated)
+                            VALUES (:industry_name, 1, 1, NOW())
+                            ON CONFLICT (industry_name) DO UPDATE SET
+                                total_negative_feedback = industry_analytics.total_negative_feedback + 1,
+                                sentiment_score = industry_analytics.total_positive_feedback::decimal / NULLIF(industry_analytics.total_positive_feedback + industry_analytics.total_negative_feedback + 1, 0),
+                                popularity_score = industry_analytics.total_positive_feedback * 2 - (industry_analytics.total_negative_feedback + 1),
+                                last_updated = NOW()
+                            """,
+                            {"industry_name": industry.lower()}
+                        )
+
+            # Update daily_analytics
+            today = date.today()
+            if is_positive:
+                self.db.execute(
+                    """
+                    UPDATE daily_analytics
+                    SET total_feedback_received = total_feedback_received + 1,
+                        total_positive_feedback = total_positive_feedback + 1
+                    WHERE date = :date
+                    """,
+                    {"date": today}
+                )
+            elif is_negative:
+                self.db.execute(
+                    """
+                    UPDATE daily_analytics
+                    SET total_feedback_received = total_feedback_received + 1,
+                        total_negative_feedback = total_negative_feedback + 1
+                    WHERE date = :date
+                    """,
+                    {"date": today}
+                )
+
+            self.db.commit()
+            logger.info(
+                "Tracked feedback",
+                article_id=article_id,
+                user_id=user_id,
+                feedback_type=feedback_type,
+                companies=article.companies,
+                industries=article.industries,
+            )
+
+        except Exception as e:
+            logger.error(f"Error tracking feedback: {e}", exc_info=True)
+            self.db.rollback()
+
+    def track_digest_sent(self, user_id: str, article_count: int) -> None:
+        """Track when a digest is sent to a user."""
+        try:
+            today = date.today()
+            self.db.execute(
+                """
+                INSERT INTO daily_analytics (date, total_digests_sent, active_users, created_at)
+                VALUES (:date, 1, 1, NOW())
+                ON CONFLICT (date) DO UPDATE SET
+                    total_digests_sent = daily_analytics.total_digests_sent + 1,
+                    active_users = daily_analytics.active_users + 1
+                """,
+                {"date": today}
+            )
+            self.db.commit()
+            logger.info(
+                "Tracked digest sent",
+                user_id=user_id,
+                article_count=article_count,
+            )
+        except Exception as e:
+            logger.error(f"Error tracking digest sent: {e}", exc_info=True)
+            self.db.rollback()
+
+    def get_top_companies(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get top companies by popularity score."""
+        result = self.db.execute(
+            """
+            SELECT company_name, total_positive_feedback, total_negative_feedback,
+                   sentiment_score, popularity_score
+            FROM company_analytics
+            ORDER BY popularity_score DESC
+            LIMIT :limit
+            """,
+            {"limit": limit}
+        )
+        return [
+            {
+                "company": row[0],
+                "positive_feedback": row[1],
+                "negative_feedback": row[2],
+                "sentiment_score": float(row[3]) if row[3] else 0,
+                "popularity_score": float(row[4]) if row[4] else 0,
+            }
+            for row in result
+        ]
+
+    def get_top_industries(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get top industries by popularity score."""
+        result = self.db.execute(
+            """
+            SELECT industry_name, total_positive_feedback, total_negative_feedback,
+                   sentiment_score, popularity_score
+            FROM industry_analytics
+            ORDER BY popularity_score DESC
+            LIMIT :limit
+            """,
+            {"limit": limit}
+        )
+        return [
+            {
+                "industry": row[0],
+                "positive_feedback": row[1],
+                "negative_feedback": row[2],
+                "sentiment_score": float(row[3]) if row[3] else 0,
+                "popularity_score": float(row[4]) if row[4] else 0,
+            }
+            for row in result
+        ]
+
+    def get_source_performance(self) -> List[Dict[str, Any]]:
+        """Get performance metrics for all sources."""
+        result = self.db.execute(
+            """
+            SELECT s.name, sa.total_articles_delivered, sa.total_positive_feedback,
+                   sa.total_negative_feedback, sa.engagement_rate
+            FROM source_analytics sa
+            JOIN sources s ON sa.source_id = s.id
+            ORDER BY sa.engagement_rate DESC
+            """
+        )
+        return [
+            {
+                "source_name": row[0],
+                "articles_delivered": row[1],
+                "positive_feedback": row[2],
+                "negative_feedback": row[3],
+                "engagement_rate": float(row[4]) if row[4] else 0,
+            }
+            for row in result
+        ]
+
+    def get_daily_stats(self, days: int = 7) -> List[Dict[str, Any]]:
+        """Get daily aggregated statistics."""
+        result = self.db.execute(
+            """
+            SELECT date, total_digests_sent, total_articles_delivered,
+                   total_feedback_received, total_positive_feedback,
+                   total_negative_feedback, active_users
+            FROM daily_analytics
+            WHERE date >= CURRENT_DATE - INTERVAL ':days days'
+            ORDER BY date DESC
+            """,
+            {"days": days}
+        )
+        return [
+            {
+                "date": str(row[0]),
+                "digests_sent": row[1],
+                "articles_delivered": row[2],
+                "feedback_received": row[3],
+                "positive_feedback": row[4],
+                "negative_feedback": row[5],
+                "active_users": row[6],
+            }
+            for row in result
+        ]
+
+
+def get_analytics_tracker(db: Session) -> AnalyticsTracker:
+    """Factory function to get an AnalyticsTracker instance."""
+    return AnalyticsTracker(db)
