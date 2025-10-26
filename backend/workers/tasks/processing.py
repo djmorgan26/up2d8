@@ -80,17 +80,15 @@ def process_article(self, article_id: str) -> Dict[str, Any]:
             )
         )
 
-        # Update article with summaries
-        article.summary_micro = summaries.get("summary_micro")
+        # Update article with summary
         article.summary_standard = summaries.get("summary_standard")
-        article.summary_detailed = summaries.get("summary_detailed")
 
-        # Count how many summaries were actually generated
-        summaries_generated = sum(
-            1
-            for s in [article.summary_micro, article.summary_standard, article.summary_detailed]
-            if s
-        )
+        # Set other summary fields to None (single summary approach)
+        article.summary_micro = None
+        article.summary_detailed = None
+
+        # Count summaries generated (should be 1)
+        summaries_generated = 1 if article.summary_standard else 0
 
         # Mark as completed
         article.processing_status = "completed"
@@ -267,9 +265,8 @@ def test_summarization(self) -> Dict[str, Any]:
         logger.info(
             "Summarization test completed successfully",
             processing_time=processing_time,
-            micro_length=len(summaries.get("summary_micro", "")),
-            standard_word_count=len(summaries.get("summary_standard", "").split()),
-            detailed_word_count=len(summaries.get("summary_detailed", "").split()),
+            summary_length=len(summaries.get("summary_standard", "")),
+            word_count=len(summaries.get("summary_standard", "").split()),
         )
 
         return result

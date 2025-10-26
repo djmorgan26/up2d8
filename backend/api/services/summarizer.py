@@ -1,10 +1,7 @@
 """
 AI-powered article summarization service.
 
-Generates multi-level summaries with timeout handling for slow models:
-- Micro (280 chars) - Tweet-length
-- Standard (150-200 words) - Email digest
-- Detailed (300-500 words) - Full context
+Generates a single standard summary (150-200 words) optimized for email digests.
 
 Optimized for free-tier models (Ollama) with aggressive timeout and retry logic.
 """
@@ -60,13 +57,11 @@ class Summarizer:
         published_at: Optional[datetime] = None,
     ) -> Dict[str, str]:
         """
-        Generate all three summary levels for an article.
+        Generate a single standard summary for an article.
 
         Returns:
             {
-                "summary_micro": str (280 chars),
-                "summary_standard": str (150-200 words),
-                "summary_detailed": str (300-500 words)
+                "summary_standard": str (150-200 words)
             }
         """
         logger.info(
@@ -75,71 +70,22 @@ class Summarizer:
             content_length=len(content),
         )
 
-        # Strategy 1: Try generating all summaries at once (most efficient)
+        # Generate single standard summary with timeout
         try:
-            summaries = await asyncio.wait_for(
-                self._generate_all_summaries(title, content, author),
-                timeout=self.max_timeout,
-            )
-            logger.info("Successfully generated all summaries in one pass")
-            return summaries
-        except asyncio.TimeoutError:
-            logger.warning(
-                "Timeout generating all summaries at once, falling back to individual generation"
-            )
-        except Exception as e:
-            logger.warning(f"Error generating all summaries at once: {e}")
-
-        # Strategy 2: Generate summaries individually with shorter timeouts
-        summaries = {}
-
-        # Micro summary (highest priority - always try)
-        try:
-            summaries["summary_micro"] = await asyncio.wait_for(
-                self._generate_micro_summary(title, content),
-                timeout=self.micro_timeout,
-            )
-        except asyncio.TimeoutError:
-            logger.error("Timeout generating micro summary, using fallback")
-            summaries["summary_micro"] = self._fallback_micro_summary(title, content)
-        except Exception as e:
-            logger.error(f"Error generating micro summary: {e}")
-            summaries["summary_micro"] = self._fallback_micro_summary(title, content)
-
-        # Standard summary (medium priority)
-        try:
-            summaries["summary_standard"] = await asyncio.wait_for(
+            summary = await asyncio.wait_for(
                 self._generate_standard_summary(title, content),
                 timeout=self.standard_timeout,
             )
+            logger.info("Successfully generated summary", summary_length=len(summary))
+            return {"summary_standard": summary}
         except asyncio.TimeoutError:
-            logger.error("Timeout generating standard summary, using fallback")
-            summaries["summary_standard"] = self._fallback_standard_summary(title, content)
+            logger.error("Timeout generating summary, using fallback")
+            fallback = self._fallback_standard_summary(title, content)
+            return {"summary_standard": fallback}
         except Exception as e:
-            logger.error(f"Error generating standard summary: {e}")
-            summaries["summary_standard"] = self._fallback_standard_summary(title, content)
-
-        # Detailed summary (lowest priority - skip if time-constrained)
-        try:
-            summaries["summary_detailed"] = await asyncio.wait_for(
-                self._generate_detailed_summary(title, content),
-                timeout=self.detailed_timeout,
-            )
-        except asyncio.TimeoutError:
-            logger.error("Timeout generating detailed summary, using fallback")
-            summaries["summary_detailed"] = self._fallback_detailed_summary(title, content)
-        except Exception as e:
-            logger.error(f"Error generating detailed summary: {e}")
-            summaries["summary_detailed"] = self._fallback_detailed_summary(title, content)
-
-        logger.info(
-            "Completed article summarization",
-            micro_length=len(summaries.get("summary_micro", "")),
-            standard_length=len(summaries.get("summary_standard", "")),
-            detailed_length=len(summaries.get("summary_detailed", "")),
-        )
-
-        return summaries
+            logger.error(f"Error generating summary: {e}")
+            fallback = self._fallback_standard_summary(title, content)
+            return {"summary_standard": fallback}
 
     async def _generate_all_summaries(
         self, title: str, content: str, author: Optional[str]

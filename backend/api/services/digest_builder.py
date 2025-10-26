@@ -165,7 +165,7 @@ class DigestBuilder:
             formatted_articles.append({
                 "id": article.id,
                 "title": article.title,
-                "summary": article.summary_standard or article.summary_micro or "No summary available.",
+                "summary": article.summary_standard or "No summary available.",
                 "source": source.name if source else "Unknown",
                 "url": article.source_url,
                 "published_at": article.published_at.isoformat() if article.published_at else None,
@@ -251,7 +251,7 @@ class DigestBuilder:
             formatted_articles.append({
                 "id": article.id,
                 "title": article.title,
-                "summary": article.summary_standard or article.summary_micro or "No summary available.",
+                "summary": article.summary_standard or "No summary available.",
                 "source": source.name if source else "Unknown",
                 "url": article.source_url,
                 "published_at": article.published_at.isoformat() if article.published_at else None,
