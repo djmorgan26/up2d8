@@ -20,6 +20,7 @@ celery==5.3.4
 # Note: celery-beat is included in celery, no separate package needed
 
 # AI/ML - Development (Free/Local)
+huggingface-hub==0.20.0  # Required for sentence-transformers
 sentence-transformers==2.2.2  # Local embeddings - FREE
 transformers==4.35.2  # For local LLM inference
 torch==2.6.0  # PyTorch for models (updated for Python 3.13)

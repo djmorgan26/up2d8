@@ -15,6 +15,8 @@ from workers.celery_app import celery_app
 from api.db.session import SessionLocal
 from api.db.models import Article
 from api.services.summarizer import get_summarizer
+from api.services.embeddings import get_embedding_client
+from api.services.vector_db import get_vector_db
 
 logger = structlog.get_logger()
 
@@ -274,3 +276,176 @@ def test_summarization(self) -> Dict[str, Any]:
     except Exception as exc:
         logger.error(f"Summarization test failed: {exc}", exc_info=True)
         raise self.retry(exc=exc)
+
+
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=300)
+def embed_article(self, article_id: str) -> Dict[str, Any]:
+    """
+    Generate embeddings for an article and store in vector database.
+
+    Args:
+        article_id: UUID of article to embed
+
+    Returns:
+        {
+            "success": bool,
+            "article_id": str,
+            "embedding_dimension": int,
+            "processing_time": float,
+            "timestamp": str
+        }
+    """
+    db = SessionLocal()
+    start_time = datetime.utcnow()
+
+    try:
+        logger.info(f"Starting embedding generation for: {article_id}")
+
+        # Get article from database
+        article = db.query(Article).filter(Article.id == article_id).first()
+
+        if not article:
+            raise ValueError(f"Article not found: {article_id}")
+
+        if not article.summary_standard:
+            logger.warning(f"Article {article_id} has no summary, skipping embedding")
+            return {
+                "success": False,
+                "article_id": article_id,
+                "reason": "no_summary",
+            }
+
+        # Prepare text for embedding
+        embedding_text = f"{article.title}\n\n{article.summary_standard}"
+        if article.content and len(article.content) < 1000:
+            embedding_text += f"\n\n{article.content[:1000]}"
+
+        # Generate embedding
+        embedding_client = get_embedding_client()
+
+        # Run async embedding in sync context
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        embedding = embedding_client.embed_text(embedding_text)
+
+        # Store in vector database
+        vector_db = get_vector_db()
+
+        metadata = {
+            "article_id": article_id,
+            "title": article.title,
+            "source_id": article.source_id,
+            "published_at": article.published_at.isoformat() if article.published_at else None,
+            "companies": ",".join(article.companies) if article.companies else "",
+            "industries": ",".join(article.industries) if article.industries else "",
+        }
+
+        loop.run_until_complete(
+            vector_db.upsert(
+                id=article_id,
+                vector=embedding,
+                metadata=metadata
+            )
+        )
+
+        processing_time = (datetime.utcnow() - start_time).total_seconds()
+
+        result = {
+            "success": True,
+            "article_id": article_id,
+            "embedding_dimension": len(embedding),
+            "processing_time": processing_time,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+        logger.info(
+            f"Embedding completed for {article_id}",
+            embedding_dimension=len(embedding),
+            processing_time=processing_time,
+        )
+
+        return result
+
+    except Exception as exc:
+        logger.error(f"Error embedding article {article_id}: {exc}", exc_info=True)
+        raise self.retry(exc=exc)
+
+    finally:
+        db.close()
+
+
+@celery_app.task(bind=True, name="workers.tasks.processing.embed_pending_articles")
+def embed_pending_articles(self, limit: int = 100) -> Dict[str, Any]:
+    """
+    Generate embeddings for articles that have summaries but no embeddings.
+
+    Args:
+        limit: Maximum number of articles to process
+
+    Returns:
+        {
+            "success": bool,
+            "articles_found": int,
+            "tasks_queued": int,
+            "task_ids": list[str],
+            "timestamp": str
+        }
+    """
+    db = SessionLocal()
+
+    try:
+        logger.info(f"Embedding pending articles (limit: {limit})")
+
+        # Get articles with summaries but not yet embedded
+        # For now, we'll just process completed articles
+        articles_to_embed = (
+            db.query(Article)
+            .filter(
+                Article.processing_status == "completed",
+                Article.summary_standard.isnot(None)
+            )
+            .order_by(Article.fetched_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        if not articles_to_embed:
+            logger.info("No articles to embed")
+            return {
+                "success": True,
+                "articles_found": 0,
+                "tasks_queued": 0,
+                "task_ids": [],
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        # Queue individual embedding tasks
+        tasks_queued = []
+        for article in articles_to_embed:
+            task = embed_article.delay(article.id)
+            tasks_queued.append(task.id)
+
+        result = {
+            "success": True,
+            "articles_found": len(articles_to_embed),
+            "tasks_queued": len(tasks_queued),
+            "task_ids": tasks_queued,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+        logger.info(
+            f"Queued {len(tasks_queued)} embedding tasks",
+            articles_found=len(articles_to_embed),
+        )
+
+        return result
+
+    except Exception as exc:
+        logger.error(f"Error embedding pending articles: {exc}", exc_info=True)
+        raise
+
+    finally:
+        db.close()
