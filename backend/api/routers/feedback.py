@@ -401,6 +401,9 @@ def _update_user_preferences_from_feedback(
             company_weights={},
             industry_weights={},
             topic_weights={},
+            total_feedback_count=0,
+            positive_feedback_count=0,
+            negative_feedback_count=0,
         )
         db.add(profile)
 
