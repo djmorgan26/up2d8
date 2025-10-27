@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { api } from '../lib/api.js';
-import type { ChatMessage } from '../types';
+import { api } from '@/lib/api';
+import type { ChatMessage } from '@/types';
 
 interface UseChatReturn {
   messages: ChatMessage[];
