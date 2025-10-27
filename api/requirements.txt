@@ -1,5 +1,0 @@
-# Azure Functions core
-azure-functions==1.18.0
-
-# Include all backend requirements
--r ../backend/requirements.txt
