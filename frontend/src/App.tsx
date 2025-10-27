@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useAuthStore } from './stores/authStore';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { LoginPage } from './pages/LoginPage';
@@ -28,8 +29,12 @@ function App() {
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
+    console.log('App mounted, token exists:', !!token);
     if (token) {
-      fetchUser();
+      fetchUser().catch((error) => {
+        console.error('Failed to fetch user:', error);
+        useAuthStore.setState({ isLoading: false, error: error.message });
+      });
     } else {
       useAuthStore.setState({ isLoading: false });
     }
@@ -44,8 +49,9 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route
@@ -91,6 +97,7 @@ function App() {
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

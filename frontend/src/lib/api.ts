@@ -21,6 +21,7 @@ class ApiClient {
   private client: AxiosInstance;
 
   constructor() {
+    console.log('API Client initializing with URL:', API_URL);
     this.client = axios.create({
       baseURL: `${API_URL}/api/v1`,
       headers: {
