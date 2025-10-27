@@ -36,9 +36,9 @@ jobs:
       - name: Build
         working-directory: frontend
         env:
-          VITE_API_URL: https://gray-wave-00bdfc60f.5.azurestaticapps.net
+          VITE_API_URL: https://up2d8.azurewebsites.net
         run: npm run build:ci
-      
+
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -48,9 +48,9 @@ jobs:
           action: "upload"
           ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
           # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "frontend/dist" # Path to built frontend
-          api_location: "api" # API source code path (Azure Functions)
-          output_location: "" # Already built, files are in app_location
+          app_location: "frontend" # Frontend source
+          api_location: "" # No API in Static Web App
+          output_location: "dist" # Vite output folder
           skip_app_build: true
           
       - name: Debug Build Output
