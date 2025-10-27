@@ -232,8 +232,8 @@ class RAGService:
             )
 
             # Extract user interests
-            filter_companies = preferences.companies if preferences and preferences.companies else None
-            filter_industries = preferences.industries if preferences and preferences.industries else None
+            filter_companies = preferences.subscribed_companies if preferences and preferences.subscribed_companies else None
+            filter_industries = preferences.subscribed_industries if preferences and preferences.subscribed_industries else None
 
             # Default to last 30 days
             date_from = datetime.utcnow() - timedelta(days=30)

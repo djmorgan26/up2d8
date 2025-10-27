@@ -1,13 +1,16 @@
 """API endpoints for chat functionality with RAG."""
 
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+import json
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
 from api.utils.auth import get_current_user
 from api.db.models import User
 from api.services.chat_service import get_chat_service
 from api.services.rag_service import get_rag_service
+from api.services.agent import get_conversational_agent
+from api.db.session import SessionLocal
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
@@ -426,3 +429,184 @@ async def chat_health():
             "status": "unhealthy",
             "error": str(e),
         }
+
+
+# ============================================================================
+# WebSocket Chat with LangGraph Agent
+# ============================================================================
+
+
+@router.websocket("/ws/{session_id}")
+async def websocket_chat(
+    websocket: WebSocket,
+    session_id: str,
+    token: str = Query(..., description="JWT access token for authentication"),
+):
+    """
+    WebSocket endpoint for real-time chat with conversational AI agent.
+
+    Uses LangGraph agent with 3-layer memory system for intelligent responses.
+
+    Protocol:
+    1. Client connects with JWT token as query parameter
+    2. Client sends JSON messages: {"message": "user message text"}
+    3. Server sends streaming JSON chunks:
+       - {"type": "start", "data": {...}}
+       - {"type": "chunk", "data": {"content": "..."}}
+       - {"type": "source", "data": {"title": "...", "relevance": 0.9}}
+       - {"type": "end", "data": {"confidence": 0.85, "memory_layers": [...]}}
+       - {"type": "error", "data": {"message": "..."}}
+
+    Example:
+    ws://localhost:8000/api/v1/chat/ws/session-id?token=your_jwt_token
+    """
+    await websocket.accept()
+
+    db = None
+    agent = None
+
+    try:
+        # Verify token and get user
+        from api.utils.auth import decode_token
+        from api.db.session import SessionLocal
+
+        try:
+            payload = decode_token(token)
+            user_id = payload.get("sub")
+
+            if not user_id:
+                await websocket.send_json({
+                    "type": "error",
+                    "data": {"message": "Invalid token"}
+                })
+                await websocket.close(code=1008, reason="Invalid token")
+                return
+
+        except Exception as e:
+            await websocket.send_json({
+                "type": "error",
+                "data": {"message": f"Authentication failed: {str(e)}"}
+            })
+            await websocket.close(code=1008, reason="Authentication failed")
+            return
+
+        # Initialize database session
+        db = SessionLocal()
+
+        # Verify user exists
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            await websocket.send_json({
+                "type": "error",
+                "data": {"message": "User not found"}
+            })
+            await websocket.close(code=1008, reason="User not found")
+            return
+
+        # Initialize conversational agent with Groq for better responses
+        agent = get_conversational_agent(
+            user_id=str(user_id),
+            session_id=session_id,
+            db=db,
+            use_groq=True
+        )
+
+        # Send ready message
+        await websocket.send_json({
+            "type": "ready",
+            "data": {
+                "session_id": session_id,
+                "user_id": str(user_id)
+            }
+        })
+
+        # Handle messages
+        while True:
+            # Receive message from client
+            data = await websocket.receive_json()
+
+            if not data.get("message"):
+                await websocket.send_json({
+                    "type": "error",
+                    "data": {"message": "Message field is required"}
+                })
+                continue
+
+            user_message = data["message"]
+
+            # Send start event
+            await websocket.send_json({
+                "type": "start",
+                "data": {
+                    "user_message": user_message,
+                    "timestamp": agent.short_term_memory.get_messages()[-1]["timestamp"] if agent.short_term_memory.get_messages() else None
+                }
+            })
+
+            try:
+                # Process message through agent
+                response = await agent.chat(user_message)
+
+                # Stream response in chunks (simulate streaming for now)
+                response_text = response["response"]
+                chunk_size = 50  # Characters per chunk
+
+                for i in range(0, len(response_text), chunk_size):
+                    chunk = response_text[i:i + chunk_size]
+                    await websocket.send_json({
+                        "type": "chunk",
+                        "data": {"content": chunk}
+                    })
+
+                # Send sources
+                if response.get("sources"):
+                    for source in response["sources"]:
+                        await websocket.send_json({
+                            "type": "source",
+                            "data": {
+                                "id": source["id"],
+                                "title": source["title"],
+                                "url": source.get("url"),
+                                "relevance_score": source["relevance_score"]
+                            }
+                        })
+
+                # Send completion event
+                await websocket.send_json({
+                    "type": "end",
+                    "data": {
+                        "confidence": response.get("confidence"),
+                        "memory_layers_used": response.get("memory_layers_used"),
+                        "query_type": response.get("query_type"),
+                        "full_response": response_text
+                    }
+                })
+
+            except Exception as e:
+                await websocket.send_json({
+                    "type": "error",
+                    "data": {"message": f"Error processing message: {str(e)}"}
+                })
+
+    except WebSocketDisconnect:
+        # Client disconnected normally
+        pass
+
+    except Exception as e:
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "data": {"message": f"Server error: {str(e)}"}
+            })
+        except:
+            pass
+
+    finally:
+        # Clean up
+        if db:
+            db.close()
+
+        try:
+            await websocket.close()
+        except:
+            pass

@@ -30,6 +30,15 @@ async def lifespan(app: FastAPI):
     print(f"🚀 UP2D8 API starting in {ENVIRONMENT} mode...")
     print(f"📍 Debug mode: {DEBUG}")
 
+    # Pre-load embedding models at startup (prevents delay on first request)
+    print("🔄 Pre-loading embedding models...")
+    try:
+        from api.services.embeddings import get_embedding_client
+        embedding_client = get_embedding_client()
+        print(f"✅ Embedding models loaded ({embedding_client.__class__.__name__})")
+    except Exception as e:
+        print(f"⚠️  Warning: Could not pre-load embedding models: {e}")
+
     yield
 
     # Shutdown
