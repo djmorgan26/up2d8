@@ -34,11 +34,10 @@ jobs:
           npm install
       
       - name: Verify files exist
-        working-directory: frontend
         run: |
           echo "Checking files..."
-          ls -la src/lib/
-          cat src/stores/authStore.ts | head -5
+          ls -la frontend/src/lib/
+          cat frontend/src/stores/authStore.ts | head -5
       
       - name: Build
         working-directory: frontend
