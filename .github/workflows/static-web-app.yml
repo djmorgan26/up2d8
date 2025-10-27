@@ -48,9 +48,9 @@ jobs:
           action: "upload"
           ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
           # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "/" # Repository root
+          app_location: "frontend/dist" # Location of built files
           api_location: "" # No API in Static Web App
-          output_location: "frontend/dist" # Full path to built files
+          output_location: "" # Built files are already at app_location
           skip_app_build: true
           
       - name: Debug Build Output
