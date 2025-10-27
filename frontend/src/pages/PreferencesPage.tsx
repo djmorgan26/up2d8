@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
-import { api } from '../lib/api';
+import { api } from '../lib/api.js';
 
 const INDUSTRIES = [
   'Technology',

@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { Logo } from '../components/common/Logo';
-import { api } from '../lib/api';
+import { api } from '../lib/api.js';
 
 type Step = 1 | 2 | 3 | 4;
 

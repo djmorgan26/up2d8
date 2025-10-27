@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { api } from '../lib/api';
+import { api } from '../lib/api.js';
 import type { User, AuthTokens, LoginCredentials, SignupData } from '../types';
 
 interface AuthState {

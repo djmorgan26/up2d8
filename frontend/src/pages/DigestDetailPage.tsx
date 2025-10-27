@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MessageSquare, ArrowLeft } from 'lucide-react';
-import { api } from '../lib/api';
+import { api } from '../lib/api.js';
 import { Header } from '../components/layout/Header';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ArticleCard } from '../components/digest/ArticleCard';

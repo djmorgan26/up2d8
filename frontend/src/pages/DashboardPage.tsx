@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Mail, Sparkles } from 'lucide-react';
-import { api } from '../lib/api';
+import { api } from '../lib/api.js';
 import { Header } from '../components/layout/Header';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { EmptyState } from '../components/common/EmptyState';
