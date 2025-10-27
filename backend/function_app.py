@@ -10,10 +10,7 @@ from api.main import app as fastapi_app
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create Azure Functions app with ASGI middleware
-app = func.AsgiFunctionApp(
-    app=fastapi_app,
-    http_auth_level=func.AuthLevel.ANONYMOUS
-)
+# Create Azure Functions app
+app = func.AsgiFunctionApp(app=fastapi_app, http_auth_level=func.AuthLevel.ANONYMOUS)
 
 logger.info("Azure Functions app initialized with FastAPI")
