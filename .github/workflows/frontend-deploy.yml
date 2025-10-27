@@ -33,11 +33,18 @@ jobs:
           npm cache clean --force
           npm install
       
-      - name: Verify files exist
+      - name: Verify setup
         run: |
-          echo "Checking files..."
-          ls -la frontend/src/lib/
-          cat frontend/src/stores/authStore.ts | head -5
+          echo "Current directory:"
+          pwd
+          echo "Listing root directory:"
+          ls -la
+          echo "Listing frontend directory:"
+          ls -la frontend/
+          echo "Listing frontend/src:"
+          ls -la frontend/src/ || echo "src not found"
+          echo "Listing frontend/src/lib:"
+          ls -la frontend/src/lib/ || echo "lib not found"
       
       - name: Build
         working-directory: frontend
