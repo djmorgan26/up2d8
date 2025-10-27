@@ -48,9 +48,9 @@ jobs:
           action: "upload"
           ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
           # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "frontend" # Frontend source
+          app_location: "/" # Repository root
           api_location: "" # No API in Static Web App
-          output_location: "dist" # Vite output folder
+          output_location: "frontend/dist" # Full path to built files
           skip_app_build: true
           
       - name: Debug Build Output
