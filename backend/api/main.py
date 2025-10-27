@@ -18,7 +18,8 @@ logger = structlog.get_logger()
 # Load environment variables
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 DEBUG = os.getenv("DEBUG", "true").lower() == "true"
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:5173").split(",")
+DEFAULT_CORS_ORIGINS = "http://localhost:3000,http://localhost:3001,http://localhost:5173,https://gray-wave-00bdfc60f.5.azurestaticapps.net"
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
 
 
 @asynccontextmanager
@@ -31,13 +32,17 @@ async def lifespan(app: FastAPI):
     print(f"📍 Debug mode: {DEBUG}")
 
     # Pre-load embedding models at startup (prevents delay on first request)
-    print("🔄 Pre-loading embedding models...")
-    try:
-        from api.services.embeddings import get_embedding_client
-        embedding_client = get_embedding_client()
-        print(f"✅ Embedding models loaded ({embedding_client.__class__.__name__})")
-    except Exception as e:
-        print(f"⚠️  Warning: Could not pre-load embedding models: {e}")
+    # Skip in Azure Functions or if explicitly disabled
+    if not os.getenv("SKIP_MODEL_PRELOAD", "false").lower() == "true":
+        print("🔄 Pre-loading embedding models...")
+        try:
+            from api.services.embeddings import get_embedding_client
+            embedding_client = get_embedding_client()
+            print(f"✅ Embedding models loaded ({embedding_client.__class__.__name__})")
+        except Exception as e:
+            print(f"⚠️  Warning: Could not pre-load embedding models: {e}")
+    else:
+        print("⏭️  Skipping model pre-load (SKIP_MODEL_PRELOAD=true)")
 
     yield
 

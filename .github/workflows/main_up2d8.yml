@@ -84,4 +84,10 @@ jobs:
           app-name: 'up2d8'
           slot-name: 'Production'
           package: '.'
+
+      - name: 'Set Azure Function App Settings'
+        uses: Azure/appservice-settings@v1
+        with:
+          app-name: 'up2d8'
+          app-settings-json: '[{"name":"SKIP_MODEL_PRELOAD","value":"true","slotSetting":false},{"name":"SCM_DO_BUILD_DURING_DEPLOYMENT","value":"false","slotSetting":false}]'
           
