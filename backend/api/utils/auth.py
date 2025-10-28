@@ -287,3 +287,43 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
         return None
 
     return user
+
+
+# MongoDB version of authentication dependencies
+def get_current_user_mongo(token: str = Depends(oauth2_scheme)) -> dict:
+    """
+    FastAPI dependency to get current user from JWT token (MongoDB version).
+
+    Args:
+        token: JWT access token from Authorization header
+
+    Returns:
+        User document from MongoDB
+
+    Raises:
+        HTTPException: If token is invalid or user not found
+    """
+    from api.db.cosmos_db import get_cosmos_client, CosmosCollections
+
+    payload = decode_token(token)
+    user_id = payload.get("sub")
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    cosmos = get_cosmos_client()
+    users_collection = cosmos.get_collection(CosmosCollections.USERS)
+    user_doc = users_collection.find_one({"id": user_id})
+
+    if not user_doc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user_doc
