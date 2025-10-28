@@ -1,6 +1,6 @@
 # Azure App Service deployment workflow for FastAPI backend
 
-name: Build and deploy Python app to Azure App Service - up2d8
+name: Python Backend
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 
 env:
   AZURE_WEBAPP_NAME: up2d8
-  PYTHON_VERSION: '3.12'
+  PYTHON_VERSION: '3.13'
   WORKING_DIRECTORY: backend
 
 jobs:
@@ -21,7 +21,8 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -30,37 +31,32 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F012F5B2F6F94CB0A6330C61E57AEFC2 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_8AF832FC630D41608A87BC78F441C334 }}
 
-      - name: 'Deploy to Azure Web App'
-        uses: azure/webapps-deploy@v3
-        id: deploy-to-webapp
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: ${{ env.WORKING_DIRECTORY }}
-
-      - name: 'Configure App Settings'
+      - name: Set Python version in App Service
         uses: azure/appservice-settings@v1
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           app-settings-json: |
             [
               {
-                "name": "SKIP_MODEL_PRELOAD",
-                "value": "true",
-                "slotSetting": false
-              },
-              {
-                "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
-                "value": "true",
-                "slotSetting": false
-              },
-              {
-                "name": "ENABLE_ORYX_BUILD",
-                "value": "true",
-                "slotSetting": false
-              },
-              {
-                "name": "POST_BUILD_COMMAND",
-                "value": "echo 'Build completed'",
-                "slotSetting": false
+                "name": "PYTHON_VERSION",
+                "value": "${{ env.PYTHON_VERSION }}"
               }
             ]
+
+      - name: Delay to avoid SCM container restart conflict
+        run: sleep 20
+
+      - name: Install dependencies
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        run: |
+          python -m venv antenv
+          source antenv/bin/activate
+          pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: 'Deploy to Azure Web App'
+        uses: azure/webapps-deploy@v3
+        id: deploy-to-webapp
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ${{ env.WORKING_DIRECTORY }}
