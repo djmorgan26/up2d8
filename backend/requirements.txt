@@ -88,3 +88,4 @@ ruff==0.1.8
 mypy==1.7.1
 pre-commit==3.6.0
 ipython==8.18.1  # For debugging
+gunicorn==21.2.0  # Production WSGI server for App Service
