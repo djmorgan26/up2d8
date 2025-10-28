@@ -32,10 +32,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -t .
 
-      - name: Zip backend folder
+      - name: Zip backend contents
         run: |
           cd ${{ env.WORKING_DIRECTORY }}
-          zip -r ../app.zip .
+          zip -r ../app.zip ./*
 
       - name: Login to Azure
         uses: azure/login@v2
