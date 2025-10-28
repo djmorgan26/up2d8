@@ -47,8 +47,8 @@ jobs:
         run: sleep 20
 
       - name: Install dependencies
-        working-directory: ${{ env.WORKING_DIRECTORY }}
         run: |
+          cd ${{ env.WORKING_DIRECTORY }}
           python -m venv antenv
           source antenv/bin/activate
           pip install --upgrade pip
