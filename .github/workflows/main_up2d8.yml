@@ -1,9 +1,9 @@
+# .github/workflows/deploy_backend.yml
 name: Build and deploy Python app to Azure App Service - up2d8
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 env:
@@ -19,8 +19,7 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -28,14 +27,12 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
+        working-directory: ${{ env.WORKING_DIRECTORY }}
         run: |
-          cd ${{ env.WORKING_DIRECTORY }}
-          python -m venv antenv
-          source antenv/bin/activate
-          pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -t .
 
-      - name: Zip backend for deployment
+      - name: Zip backend folder
         run: |
           cd ${{ env.WORKING_DIRECTORY }}
           zip -r ../app.zip .
