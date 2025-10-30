@@ -21,35 +21,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Create deployment package and install dependencies
-        run: |
-          cd backend
-          # Create deployment directory
-          mkdir -p ../deploy
-
-          # Copy application files to deploy directory
-          cp -r api ../deploy/
-          cp requirements.txt ../deploy/
-          cp startup.txt ../deploy/
-          cp runtime.txt ../deploy/
-
-          # Install dependencies directly into the deploy directory
-          # Azure will find them here automatically
-          pip install --target ../deploy -r requirements.txt
-
-          # Create zip file
-          cd ../deploy
-          zip -r ../backend-deploy.zip .
-          cd ..
-          echo "Deployment package size:"
-          ls -lh backend-deploy.zip
-          du -sh backend-deploy.zip
-
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -57,33 +28,9 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F012F5B2F6F94CB0A6330C61E57AEFC2 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_8AF832FC630D41608A87BC78F441C334 }}
 
-      - name: Remove WEBSITE_RUN_FROM_PACKAGE if exists
-        run: |
-          RG_NAME=$(az webapp list --query "[?name=='${{ env.AZURE_WEBAPP_NAME }}'].resourceGroup" -o tsv)
-          echo "Resource Group: $RG_NAME"
-          echo "Removing WEBSITE_RUN_FROM_PACKAGE setting..."
-          az webapp config appsettings delete \
-            --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --resource-group $RG_NAME \
-            --setting-names WEBSITE_RUN_FROM_PACKAGE \
-            || echo "Setting not found or already removed"
-          echo "Waiting 30 seconds for settings to propagate..."
-          sleep 30
-
-      - name: Deploy to Azure Web App
-        run: |
-          RG_NAME=$(az webapp list --query "[?name=='${{ env.AZURE_WEBAPP_NAME }}'].resourceGroup" -o tsv)
-          echo "Deploying using az webapp deploy..."
-          az webapp deploy \
-            --resource-group $RG_NAME \
-            --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --src-path backend-deploy.zip \
-            --type zip \
-            --async false \
-            --timeout 600
-
-      - name: Restart Azure Web App
-        run: |
-          az webapp restart \
-            --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --resource-group $(az webapp list --query "[?name=='${{ env.AZURE_WEBAPP_NAME }}'].resourceGroup" -o tsv)
+      - name: Deploy to Azure Web App with Oryx build
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ./backend
+          # Let Oryx build the app automatically
