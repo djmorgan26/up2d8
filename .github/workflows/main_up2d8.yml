@@ -26,27 +26,38 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
+      - name: Create virtual environment and install dependencies
         run: |
           cd backend
+          python -m venv antenv
+          source antenv/bin/activate
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          deactivate
 
-      - name: Create deployment package
+      - name: Create deployment package with dependencies
         run: |
           cd backend
           # Create a clean directory for deployment
           mkdir -p ../deploy
+
           # Copy application files
           cp -r api ../deploy/
           cp requirements.txt ../deploy/
           cp startup.txt ../deploy/
           cp runtime.txt ../deploy/
+
+          # Copy the virtual environment with all installed packages
+          cp -r antenv ../deploy/
+
           # Create zip file
           cd ../deploy
           zip -r ../backend-deploy.zip .
           cd ..
+          echo "Deployment package size:"
           ls -lh backend-deploy.zip
+          echo "Package contents:"
+          unzip -l backend-deploy.zip | head -20
 
       - name: Login to Azure
         uses: azure/login@v2
