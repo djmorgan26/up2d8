@@ -8,10 +8,10 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordBearer
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 
 from api.db.session import get_db
-from api.db.models import User
+from api.db.cosmos_db import CosmosCollections
 
 # JWT Configuration from environment
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
@@ -184,22 +184,22 @@ def create_token_pair(user_id: str) -> dict:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-) -> User:
+    db: Database = Depends(get_db)
+) -> dict:
     """
     FastAPI dependency to get the current authenticated user.
 
     Usage:
         @app.get("/protected")
-        async def protected_route(current_user: User = Depends(get_current_user)):
-            return {"user_id": current_user.id}
+        async def protected_route(current_user: dict = Depends(get_current_user)):
+            return {"user_id": current_user["id"]}
 
     Args:
         credentials: HTTP Bearer token from Authorization header
-        db: Database session
+        db: Database instance
 
     Returns:
-        User object from database
+        User document from database
 
     Raises:
         HTTPException: If token is invalid or user not found
@@ -224,7 +224,9 @@ async def get_current_user(
         )
 
     # Get user from database
-    user = db.query(User).filter(User.id == user_id).first()
+    users_collection = db[CosmosCollections.USERS]
+    user = users_collection.find_one({"id": user_id})
+
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -233,31 +235,31 @@ async def get_current_user(
         )
 
     # Check user status
-    if user.status != "active":
+    if user.get("status") != "active":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Account is {user.status}",
+            detail=f"Account is {user.get('status')}",
         )
 
     return user
 
 
 async def get_current_active_user(
-    current_user: User = Depends(get_current_user)
-) -> User:
+    current_user: dict = Depends(get_current_user)
+) -> dict:
     """
     FastAPI dependency to get current user and ensure they are active.
 
     Args:
-        current_user: User from get_current_user dependency
+        current_user: User document from get_current_user dependency
 
     Returns:
-        Active user object
+        Active user document
 
     Raises:
         HTTPException: If user account is not active
     """
-    if current_user.status != "active":
+    if current_user.get("status") != "active":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is not active"
@@ -265,40 +267,43 @@ async def get_current_active_user(
     return current_user
 
 
-def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
+def authenticate_user(db: Database, email: str, password: str) -> Optional[dict]:
     """
     Authenticate a user by email and password.
 
     Args:
-        db: Database session
+        db: Database instance
         email: User's email address
         password: Plain-text password
 
     Returns:
-        User object if authentication successful, None otherwise
+        User document if authentication successful, None otherwise
     """
-    user = db.query(User).filter(User.email == email).first()
+    users_collection = db[CosmosCollections.USERS]
+    user = users_collection.find_one({"email": email})
 
     if not user:
         return None
 
-    if not user.password_hash:
+    if not user.get("password_hash"):
         # OAuth-only user, no password set
         return None
 
-    if not verify_password(password, user.password_hash):
+    if not verify_password(password, user["password_hash"]):
         return None
 
     return user
 
 
-# MongoDB version of authentication dependencies
-def get_current_user_mongo(token: str = Depends(oauth2_scheme)) -> dict:
+# Alternative authentication using OAuth2PasswordBearer
+def get_current_user_alt(token: str = Depends(oauth2_scheme), db: Database = Depends(get_db)) -> dict:
     """
-    FastAPI dependency to get current user from JWT token (MongoDB version).
+    Alternative FastAPI dependency to get current user from JWT token.
+    Uses OAuth2PasswordBearer instead of HTTPBearer.
 
     Args:
         token: JWT access token from Authorization header
+        db: Database instance
 
     Returns:
         User document from MongoDB
@@ -306,8 +311,6 @@ def get_current_user_mongo(token: str = Depends(oauth2_scheme)) -> dict:
     Raises:
         HTTPException: If token is invalid or user not found
     """
-    from api.db.cosmos_db import get_cosmos_client, CosmosCollections
-
     payload = decode_token(token)
     user_id = payload.get("sub")
 
@@ -318,8 +321,7 @@ def get_current_user_mongo(token: str = Depends(oauth2_scheme)) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    cosmos = get_cosmos_client()
-    users_collection = cosmos.get_collection(CosmosCollections.USERS)
+    users_collection = db[CosmosCollections.USERS]
     user_doc = users_collection.find_one({"id": user_id})
 
     if not user_doc:
@@ -327,6 +329,13 @@ def get_current_user_mongo(token: str = Depends(oauth2_scheme)) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Check user status
+    if user_doc.get("status") != "active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Account is {user_doc.get('status')}",
         )
 
     return user_doc

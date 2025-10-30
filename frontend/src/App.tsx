@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useAuthStore } from './stores/authStore';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
+import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import { OnboardingPage } from './pages/OnboardingPage';
@@ -52,51 +53,54 @@ function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route
-          path="/onboarding"
-          element={
-            <ProtectedRoute>
-              <OnboardingPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/digests/:digestId"
-          element={
-            <ProtectedRoute>
-              <DigestDetailPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/chat/:sessionId"
-          element={
-            <ProtectedRoute>
-              <ChatPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/preferences"
-          element={
-            <ProtectedRoute>
-              <PreferencesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/" element={<Navigate to="/dashboard" />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Public Routes */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+
+          {/* Protected Routes */}
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute>
+                <OnboardingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/digests/:digestId"
+            element={
+              <ProtectedRoute>
+                <DigestDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat/:sessionId"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/preferences"
+            element={
+              <ProtectedRoute>
+                <PreferencesPage />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
     </ErrorBoundary>
   );
 }

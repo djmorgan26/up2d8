@@ -4,26 +4,66 @@ import { useAuthStore } from '../stores/authStore';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Logo } from '../components/common/Logo';
+import { Eye, EyeOff } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const login = useAuthStore((state) => state.login);
   const navigate = useNavigate();
 
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) {
+      setEmailError('Email is required');
+      return false;
+    }
+    if (!emailRegex.test(email)) {
+      setEmailError('Please enter a valid email address');
+      return false;
+    }
+    setEmailError('');
+    return true;
+  };
+
+  const validatePassword = (password: string) => {
+    if (!password) {
+      setPasswordError('Password is required');
+      return false;
+    }
+    if (password.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
+      return false;
+    }
+    setPasswordError('');
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validate form
+    const isEmailValid = validateEmail(email);
+    const isPasswordValid = validatePassword(password);
+
+    if (!isEmailValid || !isPasswordValid) {
+      return;
+    }
+
     setLoading(true);
 
     try {
       await login({ email, password });
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      setError(err.response?.data?.detail || 'Login failed. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }
@@ -67,27 +107,72 @@ export const LoginPage: React.FC = () => {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmailError('');
+                    setError('');
+                  }}
+                  onBlur={() => validateEmail(email)}
                   required
                   autoComplete="email"
                   placeholder="you@example.com"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none bg-white"
+                  className={`w-full px-4 py-3 rounded-xl border ${emailError ? 'border-red-300 focus:ring-red-200' : 'border-gray-300 focus:ring-primary'} focus:ring-2 focus:border-transparent transition-all outline-none bg-white`}
                 />
+                {emailError && (
+                  <p className="mt-1 text-sm text-red-600">{emailError}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Password
                 </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none bg-white"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setPasswordError('');
+                      setError('');
+                    }}
+                    onBlur={() => validatePassword(password)}
+                    required
+                    autoComplete="current-password"
+                    placeholder="••••••••"
+                    className={`w-full px-4 py-3 pr-12 rounded-xl border ${passwordError ? 'border-red-300 focus:ring-red-200' : 'border-gray-300 focus:ring-primary'} focus:ring-2 focus:border-transparent transition-all outline-none bg-white`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+                {passwordError && (
+                  <p className="mt-1 text-sm text-red-600">{passwordError}</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span className="ml-2 text-sm text-gray-600">Remember me</span>
+                </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-sm font-medium text-primary hover:text-secondary transition-colors"
+                >
+                  Forgot password?
+                </Link>
               </div>
 
               {error && (

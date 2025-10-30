@@ -1,13 +1,13 @@
 """API routes for user preferences management."""
 
-from datetime import time
+from datetime import time, datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 import structlog
 
 from api.db.session import get_db
-from api.db.models import User, UserPreference
+from api.db.models import Collections, UserPreferenceDocument
 from api.models.preference import PreferenceUpdate, PreferenceResponse
 from api.utils.auth import get_current_user
 
@@ -18,8 +18,8 @@ router = APIRouter(prefix="/api/v1/preferences", tags=["preferences"])
 
 @router.get("/me", response_model=PreferenceResponse)
 async def get_my_preferences(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
 ):
     """
     Get current user's preferences.
@@ -29,33 +29,30 @@ async def get_my_preferences(
     """
     try:
         # Get or create preferences
-        preferences = db.query(UserPreference).filter(
-            UserPreference.user_id == current_user.id
-        ).first()
+        prefs_collection = db[Collections.USER_PREFERENCES]
+        preferences = prefs_collection.find_one({"user_id": current_user["id"]})
 
         if not preferences:
             # Create default preferences
-            preferences = UserPreference(user_id=current_user.id)
-            db.add(preferences)
-            db.commit()
-            db.refresh(preferences)
-            logger.info(f"Created default preferences for user {current_user.email}")
+            preferences = UserPreferenceDocument.create(user_id=current_user["id"])
+            prefs_collection.insert_one(preferences)
+            logger.info(f"Created default preferences for user {current_user['email']}")
 
-        # Convert time object to string for JSON
+        # Convert to response format
         response_data = {
-            "subscribed_companies": preferences.subscribed_companies or [],
-            "subscribed_industries": preferences.subscribed_industries or [],
-            "subscribed_technologies": preferences.subscribed_technologies or [],
-            "subscribed_people": preferences.subscribed_people or [],
-            "digest_frequency": preferences.digest_frequency,
-            "delivery_time": preferences.delivery_time.strftime("%H:%M:%S"),
-            "timezone": preferences.timezone,
-            "delivery_days": preferences.delivery_days or [1, 2, 3, 4, 5],
-            "email_format": preferences.email_format,
-            "article_count_per_digest": preferences.article_count_per_digest,
-            "summary_style": preferences.summary_style,
-            "notification_preferences": preferences.notification_preferences or {},
-            "content_filters": preferences.content_filters or {},
+            "subscribed_companies": preferences.get("subscribed_companies", []),
+            "subscribed_industries": preferences.get("subscribed_industries", []),
+            "subscribed_technologies": preferences.get("subscribed_technologies", []),
+            "subscribed_people": preferences.get("subscribed_people", []),
+            "digest_frequency": preferences.get("digest_frequency", "daily"),
+            "delivery_time": preferences.get("delivery_time", "08:00:00"),
+            "timezone": preferences.get("timezone", "America/New_York"),
+            "delivery_days": preferences.get("delivery_days", [1, 2, 3, 4, 5]),
+            "email_format": preferences.get("email_format", "html"),
+            "article_count_per_digest": preferences.get("article_count_per_digest", 7),
+            "summary_style": preferences.get("summary_style", "standard"),
+            "notification_preferences": preferences.get("notification_preferences", {}),
+            "content_filters": preferences.get("content_filters", {}),
         }
 
         return PreferenceResponse(**response_data)

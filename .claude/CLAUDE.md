@@ -133,13 +133,13 @@ backend/tests/
 
 2. **Integration Tests** (`backend/tests/integration/`):
    - Test service interactions
-   - Use test database (Docker)
+   - Use test MongoDB database (Docker)
    - Mock external APIs only (Ollama, email)
    - Run before PR merge
 
 3. **E2E Tests** (`backend/tests/e2e/`):
    - Test complete user workflows
-   - Use test database + Redis
+   - Use test MongoDB database
    - Mock expensive operations (LLM calls)
    - Run before releases
 
@@ -205,7 +205,74 @@ async def test_ollama_generate_returns_text():
 7. → Email delivery (Week 6-7)
 8. → RAG chat system (Week 7-8)
 
-**Frontend Development**: Start in Week 9 after backend is solid
+### Frontend Development**: Start in Week 9 after backend is solid
+
+### Azure Deployment Architecture
+
+UP2D8 uses Azure's free/low-cost services for deployment:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                        AZURE CLOUD                        │
+│                                                           │
+│  ┌────────────────────┐         ┌──────────────────────┐ │
+│  │  Azure Static Web  │         │   Azure Web App      │ │
+│  │     App (F1)       │────────>│   (Free Tier)        │ │
+│  │   (Frontend:       │  API    │   (Backend:          │ │
+│  │   React + Vite)    │  Calls  │   FastAPI + Python)  │ │
+│  └────────────────────┘         └──────────────────────┘ │
+│                                           │               │
+│                                           │               │
+│                                           v               │
+│                                  ┌────────────────────┐   │
+│                                  │  Azure Cosmos DB   │   │
+│                                  │  (MongoDB API)     │   │
+│                                  │  Free Tier: 1000   │   │
+│                                  │  RU/s, 25GB        │   │
+│                                  └────────────────────┘   │
+└──────────────────────────────────────────────────────────┘
+```
+
+#### Backend (Azure Web App - Free Tier)
+1. Create Azure Web App resource (Free/F1 tier)
+2. Configure Python runtime
+3. Set up environment variables in App Settings:
+   - MONGODB_URL (Cosmos DB connection string)
+   - JWT_SECRET_KEY
+   - LLM_PROVIDER=anthropic (or openai)
+   - API keys for production services
+4. Set up GitHub Actions deployment workflow
+5. Configure startup command: `gunicorn -w 4 -k uvicorn.workers.UvicornWorker api.main:app`
+6. Monitor logs and performance in Azure Portal
+
+#### Frontend (Azure Static Web Apps)
+1. Create Static Web App resource (Free tier)
+2. Link to GitHub repository (auto-deploys on push)
+3. Configure build settings:
+   - App location: `/frontend`
+   - Build command: `npm run build`
+   - Output location: `dist`
+4. Set up environment variables (.env for Vite):
+   - VITE_API_URL=https://your-backend.azurewebsites.net
+5. Configure API proxy rules if needed in `staticwebapp.config.json`
+
+#### Database (Azure Cosmos DB with MongoDB API)
+1. Create Cosmos DB account with MongoDB API
+2. Choose **Free Tier** (1000 RU/s, 25GB storage)
+3. Configure network access:
+   - Add Azure Web App outbound IPs
+   - Add developer IPs for local testing
+4. Create database: `up2d8`
+5. Create collections: `users`, `user_preferences`, `articles`, `digests`, `chat_messages`
+6. Get connection string from Azure Portal
+7. Add connection string to Azure Web App environment variables
+
+#### Cost Optimization
+- **Free Tier Components**:
+  - Azure Static Web Apps: 100GB bandwidth/month (Free)
+  - Azure Web App: F1 tier (60 CPU minutes/day, 1GB memory, 1GB storage)
+  - Cosmos DB: Free tier (1000 RU/s, 25GB) - sufficient for MVP
+- **Estimated Monthly Cost**: $0 during development, ~$0-5 for low traffic production
 
 ### Git Workflow
 
@@ -242,11 +309,16 @@ git push origin feature/authentication-system
 
 **Priority**: Keep everything FREE
 ```bash
-# Use only when you see these set:
+# Database
+MONGODB_URL=mongodb://localhost:27017/up2d8
+
+# AI Services
 LLM_PROVIDER=ollama              # FREE - local
 OLLAMA_MODEL=llama3.2:3b         # Fast, good quality
 EMBEDDING_PROVIDER=sentence-transformers  # FREE - local
 VECTOR_DB_PROVIDER=chroma        # FREE - local
+
+# Email
 EMAIL_PROVIDER=console           # FREE - logs only
 ```
 
@@ -260,11 +332,25 @@ EMAIL_PROVIDER=console           # FREE - logs only
 
 **Only use when ready for production testing** (Week 12+)
 ```bash
+# Database (Azure Cosmos DB with MongoDB API)
+MONGODB_URL=mongodb://your-cosmos-account.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@your-cosmos-account@
+
+# AI Services
 LLM_PROVIDER=anthropic
 ANTHROPIC_API_KEY=sk-ant-xxxxx
 EMBEDDING_PROVIDER=openai
-VECTOR_DB_PROVIDER=pinecone
-EMAIL_PROVIDER=ses
+OPENAI_API_KEY=sk-xxxxx
+
+# Azure Services
+AZURE_WEBAPP_URL=https://your-webapp.azurewebsites.net
+AZURE_STATIC_WEB_APP_URL=https://your-staticapp.azurestaticapps.net
+AZURE_EMAIL_CONNECTION_STRING=...  # Azure Communication Services (optional)
+
+# JWT Configuration (Production - use strong secrets!)
+JWT_SECRET_KEY=generate_a_secure_random_key_here_min_64_chars
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=15
+REFRESH_TOKEN_EXPIRE_DAYS=7
 ```
 
 ### When to Upgrade
@@ -302,7 +388,7 @@ backend/
 │   │   ├── articles.py
 │   │   ├── digests.py
 │   │   └── chat.py
-│   ├── models/              # Pydantic models
+│   ├── models/              # Pydantic models (request/response schemas)
 │   ├── services/            # Business logic
 │   │   ├── llm_provider.py
 │   │   ├── embeddings.py
@@ -312,15 +398,16 @@ backend/
 │   │   ├── summarizer.py
 │   │   └── digest_generator.py
 │   ├── db/                  # Database
-│   │   ├── models.py        # SQLAlchemy models
-│   │   ├── session.py       # DB connection
-│   │   └── migrations/      # Alembic
+│   │   ├── mongodb.py       # MongoDB connection & client
+│   │   ├── models.py        # MongoDB document models (ODM)
+│   │   └── repositories/    # Data access layer (optional pattern)
 │   └── utils/
-├── workers/                 # Celery tasks
+├── workers/                 # Background tasks (optional Celery/APScheduler)
 │   ├── celery_app.py
 │   └── tasks.py
 ├── tests/                   # All tests here
-└── requirements.txt
+├── requirements.txt
+└── Dockerfile.local         # Local Docker build
 ```
 
 ### Code Quality
@@ -346,10 +433,12 @@ pytest
 # Standard library
 import os
 from typing import List, Optional
+from datetime import datetime
 
 # Third-party
 from fastapi import FastAPI, Depends
-from sqlalchemy import Column, String
+from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import MongoClient
 import httpx
 
 # Local
@@ -415,13 +504,80 @@ client = get_llm_client()
 5. Write unit tests
 6. Update `docs/architecture/services/{service}.md`
 
-### Database Changes
+### Database Changes (MongoDB)
 
-1. Modify `backend/api/db/models.py`
-2. Generate migration: `alembic revision --autogenerate -m "description"`
-3. Review migration SQL
-4. Test: `alembic upgrade head`
-5. Update `docs/architecture/data-models.md`
+**MongoDB is schemaless, but we maintain structure through:**
+
+1. **Document Models** (`backend/api/db/models.py`):
+   - Define Pydantic models for document structure
+   - Use for validation and type hints
+   - Example:
+     ```python
+     from pydantic import BaseModel, Field
+     from datetime import datetime
+     from typing import Optional
+
+     class User(BaseModel):
+         id: str = Field(alias="_id")
+         email: str
+         password_hash: str
+         created_at: datetime
+
+         class Config:
+             populate_by_name = True
+     ```
+
+2. **Schema Validation** (optional, for production):
+   - MongoDB supports JSON Schema validation
+   - Add validators when creating collections:
+     ```python
+     db.create_collection("users", validator={
+         "$jsonSchema": {
+             "bsonType": "object",
+             "required": ["email", "password_hash"],
+             "properties": {
+                 "email": {"bsonType": "string"},
+                 "password_hash": {"bsonType": "string"}
+             }
+         }
+     })
+     ```
+
+3. **Indexes**:
+   - Create indexes for performance:
+     ```python
+     # In backend/api/db/mongodb.py or startup
+     db.users.create_index("email", unique=True)
+     db.users.create_index("created_at")
+     db.articles.create_index([("user_id", 1), ("created_at", -1)])
+     ```
+
+4. **Migration Pattern** (no Alembic needed):
+   - **For adding fields**: Just add to code, MongoDB auto-creates
+   - **For renaming fields**: Use `$rename` update operation
+   - **For removing fields**: Use `$unset` update operation
+   - **For data transformations**: Write Python migration scripts
+   - Keep migration scripts in `backend/scripts/migrations/`
+
+   Example migration script:
+   ```python
+   # backend/scripts/migrations/001_add_tier_field.py
+   from api.db.mongodb import get_database
+
+   async def migrate():
+       db = await get_database()
+       result = await db.users.update_many(
+           {"tier": {"$exists": False}},
+           {"$set": {"tier": "free"}}
+       )
+       print(f"Updated {result.modified_count} users")
+   ```
+
+5. **Always**:
+   - Test changes in local MongoDB first
+   - Document schema changes in `docs/architecture/data-models.md`
+   - Consider backward compatibility
+   - Add validation in Pydantic models
 
 ### Add New Dependency
 
@@ -447,15 +603,105 @@ client = get_llm_client()
 ## Quick Reference
 
 ### Start Development
-```bash
-# Terminal 1: Start Ollama
-ollama serve
 
-# Terminal 2: Start Docker (includes FastAPI)
+#### Option 1: Docker Compose (Recommended)
+
+```bash
+# Start all services (MongoDB, backend, frontend)
+docker-compose up
+
+# Or run in detached mode
 docker-compose up -d
 
-# FastAPI now runs in Docker at http://localhost:8000
-# API docs: http://localhost:8000/docs
+# View logs
+docker-compose logs -f backend
+docker-compose logs -f frontend
+
+# Stop all services
+docker-compose down
+
+# Rebuild after changes
+docker-compose up --build
+
+# Services will be available at:
+# - Frontend: http://localhost:5173
+# - Backend API: http://localhost:8000
+# - API Docs: http://localhost:8000/docs
+# - MongoDB: mongodb://localhost:27017
+```
+
+**docker-compose.yml structure**:
+```yaml
+services:
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: up2d8
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.local
+    ports:
+      - "8000:8000"
+    environment:
+      MONGODB_URL: mongodb://mongodb:27017/up2d8
+      JWT_SECRET_KEY: dev_secret_key_change_in_production
+      # ... other env vars
+    depends_on:
+      - mongodb
+    volumes:
+      - ./backend:/app
+    command: uvicorn api.main:app --host 0.0.0.0 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host
+
+volumes:
+  mongodb_data:
+```
+
+#### Option 2: Manual (No Docker)
+
+```bash
+# Terminal 1: Start Ollama (for AI services)
+ollama serve
+
+# Terminal 2: Start MongoDB
+mongod --dbpath ./data/mongodb
+# Or use MongoDB Compass to manage local instance
+
+# Terminal 3: Start Backend (FastAPI)
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn api.main:app --reload
+
+# Terminal 4: Start Frontend (Vite + React)
+cd frontend
+npm install
+npm run dev
+
+# Services will be available at:
+# - Frontend: http://localhost:5173
+# - Backend API: http://localhost:8000
+# - API Docs: http://localhost:8000/docs
+# - MongoDB: mongodb://localhost:27017
 ```
 
 ### Run Tests
@@ -473,10 +719,357 @@ mypy backend/                           # Type check
 ```
 
 ### Common Issues
-- Ollama not responding → `ollama serve`
-- DB connection failed → `docker-compose up -d postgres`
-- Import errors → `pip install -r requirements.txt`
-- ChromaDB errors → `rm -rf ./data/chroma`
+
+**Docker Issues**:
+- Port already in use → `docker-compose down` or kill process on port
+- MongoDB won't start → Check Docker Desktop is running, try `docker-compose down -v` to remove volumes
+- Backend won't build → Check Dockerfile.local exists, review build logs
+- Changes not reflecting → Rebuild with `docker-compose up --build`
+
+**MongoDB Issues**:
+- Connection refused → Ensure MongoDB is running (Docker or local)
+- Authentication failed → Check MONGODB_URL in environment
+- Database not found → MongoDB auto-creates databases on first write
+- Slow queries → Add indexes (see Database Changes section)
+
+**Backend Issues**:
+- Import errors → `pip install -r requirements.txt` in venv
+- Ollama not responding → `ollama serve` (if using local LLM)
+- JWT errors → Check JWT_SECRET_KEY is set in environment
+- Port 8000 in use → Change port or kill process: `lsof -ti:8000 | xargs kill -9`
+
+**Frontend Issues**:
+- Vite won't start → `npm install` and check node version (18+)
+- API calls failing → Check VITE_API_URL points to backend
+- CORS errors → Backend must allow frontend origin in CORS middleware
+- Port 5173 in use → Change port in vite.config.ts
+
+**Data Issues**:
+- ChromaDB errors → `rm -rf ./data/chroma` and restart
+- Lost data → Check Docker volumes: `docker volume ls`
+- Reset database → `docker-compose down -v` (WARNING: deletes all data)
+
+---
+
+## MongoDB Database Guide
+
+### Overview
+
+UP2D8 uses **MongoDB** as its primary database:
+- **Local Development**: MongoDB 7 via Docker (`mongo:7` image)
+- **Production**: Azure Cosmos DB with MongoDB API (free tier: 1000 RU/s, 25GB)
+
+### Database Structure
+
+```
+up2d8 (database)
+├── users                    # User accounts
+├── user_preferences         # User settings & interests
+├── articles                 # Scraped articles
+├── digests                  # Generated daily digests
+├── chat_messages           # Chat history
+├── embeddings              # Article embeddings (optional, may use ChromaDB)
+└── revoked_tokens          # Blacklisted JWT tokens (future)
+```
+
+### Collections Schema (Document Structure)
+
+**users**:
+```json
+{
+  "_id": "uuid-string",
+  "email": "user@example.com",
+  "password_hash": "bcrypt-hash",
+  "full_name": "John Doe",
+  "tier": "free",  // "free" | "pro" | "enterprise"
+  "status": "active",  // "active" | "paused" | "suspended" | "deleted"
+  "onboarding_completed": false,
+  "oauth_provider": null,  // "google" | "microsoft" | null
+  "oauth_id": null,
+  "created_at": ISODate("2025-10-30T12:00:00Z"),
+  "last_login_at": ISODate("2025-10-30T12:00:00Z")
+}
+```
+
+**user_preferences**:
+```json
+{
+  "_id": "uuid-string",
+  "user_id": "user-uuid",
+  "industries": ["AI", "FinTech", "Healthcare"],
+  "keywords": ["machine learning", "blockchain"],
+  "sources": ["TechCrunch", "VentureBeat"],
+  "digest_frequency": "daily",  // "daily" | "weekly"
+  "digest_time": "08:00",
+  "email_enabled": true,
+  "created_at": ISODate("2025-10-30T12:00:00Z"),
+  "updated_at": ISODate("2025-10-30T12:00:00Z")
+}
+```
+
+**articles**:
+```json
+{
+  "_id": "uuid-string",
+  "url": "https://...",
+  "title": "Article Title",
+  "content": "Full article text...",
+  "summary": "AI-generated summary...",
+  "source": "TechCrunch",
+  "author": "John Smith",
+  "published_at": ISODate("2025-10-30T10:00:00Z"),
+  "scraped_at": ISODate("2025-10-30T11:00:00Z"),
+  "industries": ["AI", "FinTech"],
+  "keywords": ["GPT-4", "LLM"],
+  "embedding_id": "chroma-vector-id",
+  "relevance_score": 0.95
+}
+```
+
+### Connection Setup
+
+**File**: `backend/api/db/mongodb.py`
+
+```python
+from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import MongoClient
+import os
+
+# Async client (for FastAPI endpoints)
+_async_client = None
+_async_db = None
+
+async def get_database():
+    """Get async MongoDB database instance."""
+    global _async_client, _async_db
+    if _async_db is None:
+        mongodb_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+        _async_client = AsyncIOMotorClient(mongodb_url)
+        _async_db = _async_client.up2d8
+    return _async_db
+
+async def close_database():
+    """Close async MongoDB connection."""
+    global _async_client
+    if _async_client:
+        _async_client.close()
+
+# Sync client (for background workers/scripts)
+def get_sync_database():
+    """Get sync MongoDB database instance."""
+    mongodb_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    client = MongoClient(mongodb_url)
+    return client.up2d8
+```
+
+### Common Operations
+
+**1. Insert Document**:
+```python
+from api.db.mongodb import get_database
+
+db = await get_database()
+result = await db.users.insert_one({
+    "_id": str(uuid.uuid4()),
+    "email": "user@example.com",
+    "created_at": datetime.utcnow()
+})
+user_id = result.inserted_id
+```
+
+**2. Find Document**:
+```python
+# Find one
+user = await db.users.find_one({"email": "user@example.com"})
+
+# Find many
+articles = await db.articles.find(
+    {"industries": {"$in": ["AI", "FinTech"]}}
+).to_list(length=100)
+
+# Find with projection (select fields)
+user = await db.users.find_one(
+    {"email": "user@example.com"},
+    {"password_hash": 0}  # Exclude password
+)
+```
+
+**3. Update Document**:
+```python
+# Update one
+result = await db.users.update_one(
+    {"_id": user_id},
+    {"$set": {"last_login_at": datetime.utcnow()}}
+)
+
+# Update many
+result = await db.users.update_many(
+    {"tier": "free"},
+    {"$set": {"status": "active"}}
+)
+
+# Upsert (insert if not exists)
+result = await db.user_preferences.update_one(
+    {"user_id": user_id},
+    {"$set": {"digest_frequency": "daily"}},
+    upsert=True
+)
+```
+
+**4. Delete Document**:
+```python
+# Delete one
+result = await db.articles.delete_one({"_id": article_id})
+
+# Delete many (soft delete pattern)
+result = await db.users.update_many(
+    {"status": "deleted"},
+    {"$set": {"deleted_at": datetime.utcnow()}}
+)
+```
+
+**5. Aggregation Pipeline**:
+```python
+# Get article count by industry
+pipeline = [
+    {"$unwind": "$industries"},
+    {"$group": {
+        "_id": "$industries",
+        "count": {"$sum": 1}
+    }},
+    {"$sort": {"count": -1}}
+]
+results = await db.articles.aggregate(pipeline).to_list(length=100)
+```
+
+### Indexes
+
+**Create indexes on startup** (`backend/api/main.py`):
+
+```python
+@app.on_event("startup")
+async def create_indexes():
+    db = await get_database()
+
+    # Users
+    await db.users.create_index("email", unique=True)
+    await db.users.create_index("created_at")
+
+    # User preferences
+    await db.user_preferences.create_index("user_id", unique=True)
+
+    # Articles
+    await db.articles.create_index([("industries", 1), ("published_at", -1)])
+    await db.articles.create_index("url", unique=True)
+    await db.articles.create_index("scraped_at")
+
+    # Digests
+    await db.digests.create_index([("user_id", 1), ("created_at", -1)])
+
+    # Chat messages
+    await db.chat_messages.create_index([("user_id", 1), ("created_at", -1)])
+
+    # TTL index for revoked tokens (auto-delete after expiry)
+    await db.revoked_tokens.create_index(
+        "expires_at",
+        expireAfterSeconds=0
+    )
+```
+
+### Data Validation (Optional)
+
+Add JSON Schema validation in production:
+
+```python
+# Example: Enforce user schema
+await db.command({
+    "collMod": "users",
+    "validator": {
+        "$jsonSchema": {
+            "bsonType": "object",
+            "required": ["_id", "email", "password_hash", "created_at"],
+            "properties": {
+                "_id": {"bsonType": "string"},
+                "email": {"bsonType": "string", "pattern": "^.+@.+$"},
+                "password_hash": {"bsonType": "string"},
+                "tier": {"enum": ["free", "pro", "enterprise"]},
+                "status": {"enum": ["active", "paused", "suspended", "deleted"]}
+            }
+        }
+    },
+    "validationLevel": "moderate"  # "strict" | "moderate"
+})
+```
+
+### Migration Patterns
+
+**No Alembic needed!** MongoDB is schemaless. Migrations are Python scripts.
+
+**Example**: Add `tier` field to existing users:
+
+```python
+# backend/scripts/migrations/001_add_user_tier.py
+import asyncio
+from api.db.mongodb import get_database
+
+async def migrate():
+    db = await get_database()
+
+    # Find users without tier field
+    result = await db.users.update_many(
+        {"tier": {"$exists": False}},
+        {"$set": {"tier": "free", "updated_at": datetime.utcnow()}}
+    )
+
+    print(f"Updated {result.modified_count} users")
+
+if __name__ == "__main__":
+    asyncio.run(migrate())
+```
+
+**Run migration**:
+```bash
+cd backend
+python scripts/migrations/001_add_user_tier.py
+```
+
+### Azure Cosmos DB Specifics
+
+**Connection String Format**:
+```
+mongodb://your-account:PRIMARY_KEY@your-account.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@your-account@
+```
+
+**Important Notes**:
+- Cosmos DB uses **Request Units (RU/s)** instead of raw performance
+- Free tier: 1000 RU/s shared across all operations
+- Optimize queries to use indexes (lower RU cost)
+- Use `retrywrites=false` in connection string (Cosmos limitation)
+- Monitor RU consumption in Azure Portal
+- Consider **server-side pagination** for large result sets:
+  ```python
+  # Paginate with skip/limit (not efficient for large skips)
+  page = 1
+  limit = 20
+  skip = (page - 1) * limit
+  results = await db.articles.find().skip(skip).limit(limit).to_list(limit)
+
+  # Better: Use cursor-based pagination
+  last_id = request.query_params.get("last_id")
+  query = {"_id": {"$gt": last_id}} if last_id else {}
+  results = await db.articles.find(query).limit(20).to_list(20)
+  ```
+
+### Best Practices
+
+1. **Always use indexes** for queried fields
+2. **Use projections** to limit returned fields
+3. **Batch operations** when possible (`insert_many`, `bulk_write`)
+4. **Handle connection errors** with retry logic
+5. **Use TTL indexes** for auto-expiring data (tokens, sessions)
+6. **Validate data** with Pydantic before inserting
+7. **Monitor query performance** in development
+8. **Use async client (Motor)** for FastAPI, sync for scripts
 
 ---
 
@@ -658,11 +1251,23 @@ if current_user.status != "active":
     raise HTTPException(status_code=403, detail="Account not active")
 ```
 
-**Get user preferences**:
+**Get user preferences (MongoDB)**:
 ```python
-preferences = db.query(UserPreference).filter(
-    UserPreference.user_id == current_user.id
-).first()
+# Using Motor (async)
+from api.db.mongodb import get_database
+
+db = await get_database()
+preferences = await db.user_preferences.find_one(
+    {"user_id": current_user.id}
+)
+
+# Using PyMongo (sync)
+from api.db.mongodb import get_sync_database
+
+db = get_sync_database()
+preferences = db.user_preferences.find_one(
+    {"user_id": current_user.id}
+)
 ```
 
 **Manually decode token** (advanced):
@@ -676,7 +1281,21 @@ token_type = payload.get("type")  # "access" or "refresh"
 
 ### Important Notes for Future Development
 
-1. **Token Blacklist**: Currently not implemented. For production, implement Redis-based token blacklist for logout.
+1. **Token Blacklist**: Currently not implemented. For production, consider:
+   - MongoDB-based token blacklist (simpler, no Redis needed)
+   - Store revoked tokens in `revoked_tokens` collection
+   - Add TTL index to auto-expire old tokens
+   - Example:
+     ```python
+     # Add to revoked_tokens collection
+     await db.revoked_tokens.insert_one({
+         "token": token_hash,
+         "revoked_at": datetime.utcnow(),
+         "expires_at": datetime.utcnow() + timedelta(days=7)
+     })
+     # Create TTL index
+     db.revoked_tokens.create_index("expires_at", expireAfterSeconds=0)
+     ```
 
 2. **Password Reset**: Not yet implemented. Will need:
    - POST /auth/forgot-password (send email with reset link)
@@ -730,10 +1349,11 @@ token_type = payload.get("type")  # "access" or "refresh"
 - **Conversational AI Agent (Planned for Weeks 10-11)**: `docs/architecture/conversational-ai-agent.md`
 
 **Completed Features**:
-- ✅ Database schema with Alembic migrations
+- ✅ MongoDB database setup with Docker
 - ✅ JWT authentication (signup, login, refresh, protected routes)
 - ✅ User management with BCrypt password hashing
 - ✅ Request logging middleware
+- ✅ Docker Compose development environment
 
 **Planned Features (Documented)**:
 - 📋 Conversational AI Agent with LangChain/LangGraph (Weeks 10-11)
@@ -745,6 +1365,7 @@ token_type = payload.get("type")  # "access" or "refresh"
 
 ---
 
-**Last Updated**: 2025-10-24
+**Last Updated**: 2025-10-30
 **Project**: UP2D8
-**Stack**: Python (FastAPI), PostgreSQL, Redis, Ollama, ChromaDB
+**Stack**: Python (FastAPI), MongoDB, Motor/PyMongo, Azure Web App (Backend), Azure Static Web Apps (Frontend), Azure Cosmos DB (MongoDB API), Ollama, ChromaDB
+**Architecture**: MongoDB + Azure Free Tier

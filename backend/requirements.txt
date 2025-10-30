@@ -5,19 +5,14 @@ pydantic==2.5.0
 pydantic-settings==2.1.0
 email-validator==2.2.0  # Required for EmailStr validation
 
-# Database
-sqlalchemy==2.0.23
-alembic==1.12.1
-psycopg2-binary==2.9.9
-asyncpg==0.29.0
-
-# Redis & Caching
-redis==5.0.1
-hiredis==2.2.3
+# Database - MongoDB
+pymongo==4.6.1  # MongoDB driver for Cosmos DB MongoDB API
+motor==3.3.2  # Async MongoDB driver (optional, for async operations)
 
 # Task Queue
 celery==5.3.4
 # Note: celery-beat is included in celery, no separate package needed
+# Note: Celery can use MongoDB as broker: celery[mongodb]
 
 # AI/ML - Development (Free/Local)
 numpy<2.0.0,>=1.24.0  # ChromaDB requires numpy < 2.0
@@ -41,7 +36,6 @@ azure-functions==1.18.0  # Azure Functions runtime
 azure-cosmos==4.5.1  # Cosmos DB SDK (MongoDB API)
 azure-storage-blob==12.19.0  # Blob storage for ChromaDB persistence
 # durable-functions==1.2.4  # Not available on PyPI - install manually if needed
-pymongo==4.6.1  # MongoDB driver for Cosmos DB MongoDB API
 
 # Free LLM Provider (replaces Ollama in cloud)
 groq==0.4.1  # Groq API - FREE tier (14,400 req/day)

@@ -20,6 +20,9 @@ local.settings.json
 *.pubxml
 .azure/
 
+# AI CLI configurations (may contain context)
+.gemini/
+
 # API keys and tokens
 *.key
 *.pem

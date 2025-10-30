@@ -10,7 +10,7 @@ import os
 import uuid
 
 # Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from sqlalchemy.orm import Session
 from api.db.session import SessionLocal
