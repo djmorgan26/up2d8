@@ -29,6 +29,12 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F012F5B2F6F94CB0A6330C61E57AEFC2 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_8AF832FC630D41608A87BC78F441C334 }}
 
+      - name: Stop Azure Web App
+        run: az webapp stop --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group up2d8_group
+
+      - name: Start Azure Web App
+        run: az webapp start --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group up2d8_group
+
       - name: Deploy to Azure Web App using Oryx build
         uses: azure/webapps-deploy@v3
         with:
