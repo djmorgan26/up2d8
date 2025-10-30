@@ -32,7 +32,7 @@ jobs:
       - name: Get Resource Group Name
         id: get_rg
         run: |
-          RG_NAME=$(az webapp show --name ${{ env.AZURE_WEBAPP_NAME }} --query resourceGroup -o tsv)
+          RG_NAME=$(az webapp list --query "[?name=='${{ env.AZURE_WEBAPP_NAME }}'].resourceGroup" -o tsv)
           echo "rg_name=$RG_NAME" >> $GITHUB_OUTPUT
           echo "Resource Group: $RG_NAME"
 
