@@ -18,7 +18,7 @@ logger = structlog.get_logger()
 # Load environment variables
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 DEBUG = os.getenv("DEBUG", "true").lower() == "true"
-DEFAULT_CORS_ORIGINS = "http://localhost:3000,http://localhost:3001,http://localhost:5173,https://gray-wave-00bdfc60f.5.azurestaticapps.net"
+DEFAULT_CORS_ORIGINS = "http://localhost:3000,http://localhost:3001,http://localhost:5173,https://gray-wave-00bdfc60f.3.azurestaticapps.net"
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
 
 
