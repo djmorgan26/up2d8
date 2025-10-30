@@ -58,19 +58,26 @@ jobs:
       - name: Remove WEBSITE_RUN_FROM_PACKAGE if exists
         run: |
           RG_NAME=$(az webapp list --query "[?name=='${{ env.AZURE_WEBAPP_NAME }}'].resourceGroup" -o tsv)
-          echo "Checking for WEBSITE_RUN_FROM_PACKAGE setting..."
+          echo "Resource Group: $RG_NAME"
+          echo "Removing WEBSITE_RUN_FROM_PACKAGE setting..."
           az webapp config appsettings delete \
             --name ${{ env.AZURE_WEBAPP_NAME }} \
             --resource-group $RG_NAME \
             --setting-names WEBSITE_RUN_FROM_PACKAGE \
             || echo "Setting not found or already removed"
+          echo "Waiting 30 seconds for settings to propagate..."
+          sleep 30
 
       - name: Deploy to Azure Web App
         run: |
-          az webapp deployment source config-zip \
-            --resource-group $(az webapp list --query "[?name=='${{ env.AZURE_WEBAPP_NAME }}'].resourceGroup" -o tsv) \
+          RG_NAME=$(az webapp list --query "[?name=='${{ env.AZURE_WEBAPP_NAME }}'].resourceGroup" -o tsv)
+          echo "Deploying using az webapp deploy..."
+          az webapp deploy \
+            --resource-group $RG_NAME \
             --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --src backend-deploy.zip \
+            --src-path backend-deploy.zip \
+            --type zip \
+            --async false \
             --timeout 600
 
       - name: Restart Azure Web App
