@@ -9,10 +9,9 @@ on:
 env:
   AZURE_WEBAPP_NAME: up2d8
   PYTHON_VERSION: '3.12'
-  WORKING_DIRECTORY: backend
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -22,6 +21,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create deployment package
+        run: |
+          cd backend
+          # Create a clean directory for deployment
+          mkdir -p ../deploy
+          # Copy application files
+          cp -r api ../deploy/
+          cp requirements.txt ../deploy/
+          cp startup.txt ../deploy/
+          cp runtime.txt ../deploy/
+          # Create zip file
+          cd ../deploy
+          zip -r ../backend-deploy.zip .
+          cd ..
+          ls -lh backend-deploy.zip
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -29,21 +55,16 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F012F5B2F6F94CB0A6330C61E57AEFC2 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_8AF832FC630D41608A87BC78F441C334 }}
 
-      - name: Get Resource Group Name
-        id: get_rg
+      - name: Deploy to Azure Web App
         run: |
-          RG_NAME=$(az webapp list --query "[?name=='${{ env.AZURE_WEBAPP_NAME }}'].resourceGroup" -o tsv)
-          echo "rg_name=$RG_NAME" >> $GITHUB_OUTPUT
-          echo "Resource Group: $RG_NAME"
+          az webapp deployment source config-zip \
+            --resource-group $(az webapp list --query "[?name=='${{ env.AZURE_WEBAPP_NAME }}'].resourceGroup" -o tsv) \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --src backend-deploy.zip \
+            --timeout 600
 
-      - name: Stop Azure Web App
-        run: az webapp stop --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ steps.get_rg.outputs.rg_name }}
-
-      - name: Start Azure Web App
-        run: az webapp start --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ steps.get_rg.outputs.rg_name }}
-
-      - name: Deploy to Azure Web App using Oryx build
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: ${{ env.WORKING_DIRECTORY }}
+      - name: Restart Azure Web App
+        run: |
+          az webapp restart \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group $(az webapp list --query "[?name=='${{ env.AZURE_WEBAPP_NAME }}'].resourceGroup" -o tsv)
