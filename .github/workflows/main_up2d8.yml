@@ -29,11 +29,18 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F012F5B2F6F94CB0A6330C61E57AEFC2 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_8AF832FC630D41608A87BC78F441C334 }}
 
+      - name: Get Resource Group Name
+        id: get_rg
+        run: |
+          RG_NAME=$(az webapp show --name ${{ env.AZURE_WEBAPP_NAME }} --query resourceGroup -o tsv)
+          echo "rg_name=$RG_NAME" >> $GITHUB_OUTPUT
+          echo "Resource Group: $RG_NAME"
+
       - name: Stop Azure Web App
-        run: az webapp stop --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group up2d8_group
+        run: az webapp stop --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ steps.get_rg.outputs.rg_name }}
 
       - name: Start Azure Web App
-        run: az webapp start --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group up2d8_group
+        run: az webapp start --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ steps.get_rg.outputs.rg_name }}
 
       - name: Deploy to Azure Web App using Oryx build
         uses: azure/webapps-deploy@v3
