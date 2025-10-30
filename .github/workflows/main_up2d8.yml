@@ -55,6 +55,16 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F012F5B2F6F94CB0A6330C61E57AEFC2 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_8AF832FC630D41608A87BC78F441C334 }}
 
+      - name: Remove WEBSITE_RUN_FROM_PACKAGE if exists
+        run: |
+          RG_NAME=$(az webapp list --query "[?name=='${{ env.AZURE_WEBAPP_NAME }}'].resourceGroup" -o tsv)
+          echo "Checking for WEBSITE_RUN_FROM_PACKAGE setting..."
+          az webapp config appsettings delete \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group $RG_NAME \
+            --setting-names WEBSITE_RUN_FROM_PACKAGE \
+            || echo "Setting not found or already removed"
+
       - name: Deploy to Azure Web App
         run: |
           az webapp deployment source config-zip \
