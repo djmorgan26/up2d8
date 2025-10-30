@@ -21,6 +21,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Prepare Azure deployment (use lightweight requirements)
+        run: |
+          cd backend
+          mv requirements.txt requirements-dev.txt
+          mv requirements-azure.txt requirements.txt
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
