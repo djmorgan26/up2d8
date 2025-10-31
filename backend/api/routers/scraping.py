@@ -151,6 +151,96 @@ async def sync_sources(
     }
 
 
+@router.post("/sources/sync/direct", response_model=dict)
+async def sync_sources_direct(
+    db: Database = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Sync sources from YAML config to database directly (for testing/demo).
+
+    Requires authentication.
+    """
+    from api.db.cosmos_db import CosmosCollections
+    from api.db.models import SourceDocument
+    from datetime import datetime
+    import yaml
+    from pathlib import Path
+
+    try:
+        # Load sources from YAML
+        config_file = Path(__file__).parent.parent.parent / "config" / "sources.yaml"
+
+        with open(config_file, "r") as f:
+            data = yaml.safe_load(f)
+            yaml_sources = data.get("sources", [])
+
+        created_count = 0
+        updated_count = 0
+
+        for source_config in yaml_sources:
+            try:
+                # Check if source exists
+                source_record = db[CosmosCollections.SOURCES].find_one(
+                    {"id": source_config["id"]}
+                )
+
+                if source_record:
+                    # Update existing source
+                    db[CosmosCollections.SOURCES].update_one(
+                        {"id": source_config["id"]},
+                        {
+                            "$set": {
+                                "name": source_config["name"],
+                                "type": source_config["type"],
+                                "url": source_config.get("url", ""),
+                                "config": source_config.get("config", {}),
+                                "check_interval_hours": source_config.get(
+                                    "check_interval_hours", 6
+                                ),
+                                "priority": source_config.get("priority", "medium"),
+                                "authority_score": source_config.get("authority_score", 50),
+                                "companies": source_config.get("companies", []),
+                                "industries": source_config.get("industries", []),
+                                "active": source_config.get("active", True),
+                                "updated_at": datetime.utcnow(),
+                            }
+                        }
+                    )
+                    updated_count += 1
+                else:
+                    # Create new source
+                    new_source = SourceDocument.create(
+                        source_id=source_config["id"],
+                        name=source_config["name"],
+                        source_type=source_config["type"],
+                        url=source_config.get("url", ""),
+                        config=source_config.get("config", {}),
+                        check_interval_hours=source_config.get("check_interval_hours", 6),
+                        priority=source_config.get("priority", "medium"),
+                        authority_score=source_config.get("authority_score", 50),
+                        companies=source_config.get("companies", []),
+                        industries=source_config.get("industries", []),
+                        active=source_config.get("active", True),
+                    )
+                    db[CosmosCollections.SOURCES].insert_one(new_source)
+                    created_count += 1
+
+            except Exception as e:
+                print(f"Error syncing source {source_config['id']}: {e}")
+                continue
+
+        return {
+            "success": True,
+            "message": "Sources synced successfully",
+            "sources_created": created_count,
+            "sources_updated": updated_count,
+            "total_sources": len(yaml_sources),
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
+
+
 # ============================================================================
 # Scraping Control Endpoints
 # ============================================================================
@@ -182,6 +272,110 @@ async def trigger_scrape_single(
         "source_id": source_id,
         "message": f"Scraping task queued for {source['name']}",
     }
+
+
+@router.post("/scrape/{source_id}/direct", response_model=ScrapeResultResponse)
+async def scrape_source_direct(
+    source_id: str,
+    db: Database = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Directly scrape a source without using Celery (for testing/demo).
+
+    Requires authentication.
+    """
+    from api.db.cosmos_db import CosmosCollections
+    from api.db.models import ArticleDocument
+    from api.services.scraper import create_scraper
+    from datetime import datetime, timedelta
+
+    # Verify source exists
+    source = db[CosmosCollections.SOURCES].find_one({"id": source_id})
+
+    if not source:
+        raise HTTPException(status_code=404, detail=f"Source not found: {source_id}")
+
+    if not source.get("active", True):
+        raise HTTPException(status_code=400, detail=f"Source is inactive: {source_id}")
+
+    try:
+        # Create scraper
+        scraper = create_scraper(
+            source_id=source["id"],
+            source_type=source["type"],
+            source_url=source.get("url", ""),
+            config=source.get("config", {}),
+        )
+
+        # Run scraper
+        articles = await scraper.scrape()
+
+        # Store articles in database
+        stored_count = 0
+        duplicate_count = 0
+
+        for article in articles:
+            try:
+                # Check for duplicates by URL
+                existing = db[CosmosCollections.ARTICLES].find_one(
+                    {"source_url": article.source_url}
+                )
+
+                if existing:
+                    duplicate_count += 1
+                    continue
+
+                # Store new article
+                article_data = article.to_dict()
+                article_doc = ArticleDocument.create(
+                    source_id=source_id,
+                    source_url=article_data["source_url"],
+                    title=article_data["title"],
+                    **article_data
+                )
+                db[CosmosCollections.ARTICLES].insert_one(article_doc)
+                stored_count += 1
+
+            except Exception as e:
+                print(f"Error storing article: {e}")
+                continue
+
+        # Update source metadata
+        db[CosmosCollections.SOURCES].update_one(
+            {"id": source_id},
+            {
+                "$set": {
+                    "last_checked_at": datetime.utcnow(),
+                    "next_check_at": datetime.utcnow() + timedelta(
+                        hours=source.get("check_interval_hours", 6)
+                    ),
+                    "last_error": None,
+                },
+                "$inc": {"success_count": 1},
+            }
+        )
+
+        return {
+            "success": True,
+            "message": f"Successfully scraped {source['name']}",
+            "articles_scraped": len(articles),
+            "articles_stored": stored_count,
+            "duplicates_found": duplicate_count,
+        }
+
+    except Exception as e:
+        # Update source error status
+        db[CosmosCollections.SOURCES].update_one(
+            {"id": source_id},
+            {
+                "$set": {
+                    "last_error": str(e),
+                    "last_checked_at": datetime.utcnow(),
+                },
+                "$inc": {"failure_count": 1},
+            }
+        )
+        raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
 
 
 @router.post("/scrape/all", response_model=ScrapeResultResponse)
