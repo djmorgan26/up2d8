@@ -104,11 +104,25 @@ async def list_sources(
         query_filter["priority"] = priority
 
     # Fetch sources
-    sources = list(
-        db[CosmosCollections.SOURCES]
-        .find(query_filter)
-        .sort([("priority", -1), ("name", 1)])
-    )
+    sources_cursor = db[CosmosCollections.SOURCES].find(query_filter).sort([("priority", -1), ("name", 1)])
+
+    # Convert MongoDB documents to response format
+    sources = []
+    for doc in sources_cursor:
+        # Convert _id to string if needed, use 'id' field if it exists
+        source_dict = dict(doc)
+        if "id" not in source_dict and "_id" in source_dict:
+            source_dict["id"] = str(source_dict["_id"])
+        if "_id" in source_dict:
+            del source_dict["_id"]
+
+        # Ensure all required fields have defaults
+        source_dict.setdefault("success_count", 0)
+        source_dict.setdefault("failure_count", 0)
+        source_dict.setdefault("last_checked_at", None)
+        source_dict.setdefault("next_check_at", None)
+
+        sources.append(source_dict)
 
     return sources
 
@@ -433,13 +447,30 @@ async def list_articles(
         query_filter["processing_status"] = status
 
     # Fetch articles
-    articles = list(
+    articles_cursor = (
         db[CosmosCollections.ARTICLES]
         .find(query_filter)
         .sort("fetched_at", -1)
         .skip(offset)
         .limit(limit)
     )
+
+    # Convert MongoDB documents to response format
+    articles = []
+    for doc in articles_cursor:
+        # Convert _id to string if needed, use 'id' field if it exists
+        article_dict = dict(doc)
+        if "id" not in article_dict and "_id" in article_dict:
+            article_dict["id"] = str(article_dict["_id"])
+        if "_id" in article_dict:
+            del article_dict["_id"]
+
+        # Ensure all required fields have defaults
+        article_dict.setdefault("companies", [])
+        article_dict.setdefault("industries", [])
+        article_dict.setdefault("published_at", None)
+
+        articles.append(article_dict)
 
     return articles
 
