@@ -89,6 +89,7 @@ class CosmosCollections:
     """Collection name constants"""
     USERS = "users"
     USER_PREFERENCES = "user_preferences"
+    SOURCES = "sources"
     ARTICLES = "articles"
     DIGESTS = "digests"
     CHAT_SESSIONS = "chat_sessions"
