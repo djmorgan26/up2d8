@@ -135,6 +135,7 @@ async def get_source(
 
 @router.post("/sources/sync", response_model=dict)
 async def sync_sources(
+    db: Database = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """Sync sources from YAML config to database.
@@ -142,13 +143,12 @@ async def sync_sources(
     Requires authentication.
     Useful for initial setup or after modifying sources.yaml.
     """
-    task = sync_sources_to_db.delay()
+    from api.services.scraping_sync import sync_sources_to_db
 
-    return {
-        "task_id": task.id,
-        "message": "Source sync task queued",
-        "status_url": f"/api/v1/scraping/tasks/{task.id}",
-    }
+    # Call synchronous function directly (no Celery)
+    result = sync_sources_to_db()
+
+    return result
 
 
 @router.post("/sources/sync/direct", response_model=dict)
@@ -246,7 +246,7 @@ async def sync_sources_direct(
 # ============================================================================
 
 
-@router.post("/scrape/{source_id}", response_model=ScrapeTaskResponse)
+@router.post("/scrape/{source_id}", response_model=dict)
 async def trigger_scrape_single(
     source_id: str,
     db: Database = Depends(get_db),
@@ -256,22 +256,12 @@ async def trigger_scrape_single(
 
     Requires authentication.
     """
-    from api.db.cosmos_db import CosmosCollections
+    from api.services.scraping_sync import scrape_source_sync
 
-    # Verify source exists
-    source = db[CosmosCollections.SOURCES].find_one({"id": source_id})
+    # Call synchronous function directly (no Celery)
+    result = scrape_source_sync(source_id)
 
-    if not source:
-        raise HTTPException(status_code=404, detail=f"Source not found: {source_id}")
-
-    # Dispatch scraping task
-    task = scrape_source.delay(source_id)
-
-    return {
-        "task_id": task.id,
-        "source_id": source_id,
-        "message": f"Scraping task queued for {source['name']}",
-    }
+    return result
 
 
 @router.post("/scrape/{source_id}/direct", response_model=ScrapeResultResponse)
