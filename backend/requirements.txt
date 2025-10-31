@@ -3,6 +3,7 @@ fastapi==0.104.1
 uvicorn[standard]==0.24.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
+pydantic-core==2.14.5  # Pin to stable version compatible with Python 3.12
 email-validator==2.2.0  # Required for EmailStr validation
 
 # Database - MongoDB
@@ -29,7 +30,9 @@ openai==1.3.7  # OpenAI API
 pinecone-client==2.2.4  # Pinecone vector DB
 
 # LLM Provider Abstraction - LangGraph for conversational AI
-langgraph==0.0.69  # State-based agent orchestration (includes langchain-core)
+langgraph==0.2.50  # State-based agent orchestration (includes langchain-core) - updated for Python 3.12 compatibility
+langchain-core==0.3.21  # Explicitly pin compatible langchain-core
+langsmith>=0.1.147  # Use newer version with Python 3.12 fixes
 
 # Azure Services (for cloud deployment - optional for local dev)
 azure-functions==1.18.0  # Azure Functions runtime
