@@ -97,9 +97,9 @@ def sync_sources_to_db() -> dict:
         }
 
 
-def scrape_source_sync(source_id: str) -> dict:
+async def scrape_source_sync(source_id: str) -> dict:
     """
-    Scrape content from a single source synchronously.
+    Scrape content from a single source (async for FastAPI).
 
     Args:
         source_id: Source identifier
@@ -144,17 +144,8 @@ def scrape_source_sync(source_id: str) -> dict:
             config=source_record.get("config", {}),
         )
 
-        # Run scraper (handle async)
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_closed():
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        articles = loop.run_until_complete(scraper.scrape())
+        # Run scraper (use await since we're in async context)
+        articles = await scraper.scrape()
 
         logger.info(f"Scraped {len(articles)} articles from {source_id}")
 

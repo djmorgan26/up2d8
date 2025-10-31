@@ -258,8 +258,8 @@ async def trigger_scrape_single(
     """
     from api.services.scraping_sync import scrape_source_sync
 
-    # Call synchronous function directly (no Celery)
-    result = scrape_source_sync(source_id)
+    # Call async function directly (no Celery)
+    result = await scrape_source_sync(source_id)
 
     return result
 
