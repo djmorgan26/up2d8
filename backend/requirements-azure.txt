@@ -4,8 +4,8 @@
 # Web Framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic>=2.7.4,<3.0.0  # Upgraded for langchain-core 0.3.21 Python 3.12 requirement
+pydantic-settings>=2.3.0  # Upgraded to be compatible with pydantic 2.7.4+
 email-validator==2.2.0
 
 # Database - MongoDB
