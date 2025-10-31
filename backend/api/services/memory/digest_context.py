@@ -6,11 +6,13 @@ This is the most recent and relevant context for answering user questions.
 """
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 import structlog
 
-from api.db.models import Article, Digest
+# Removed SQLAlchemy import
+from pymongo.database import Database
 from api.db.session import get_db
+from api.db.cosmos_db import CosmosCollections
 
 logger = structlog.get_logger()
 
@@ -25,9 +27,11 @@ class DigestContextMemory:
     - Quick access to "what's new"
 
     Priority: HIGHEST (most recent, most relevant)
+
+    TODO: Implement MongoDB queries. For now, this is stubbed to unblock API startup.
     """
 
-    def __init__(self, user_id: str, db: Session):
+    def __init__(self, user_id: str, db: Database):
         """
         Initialize digest context memory
 
@@ -51,41 +55,27 @@ class DigestContextMemory:
         Returns:
             List of article dictionaries
         """
-        # Check cache first
-        cache_key = f"todays_articles_{limit}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+        logger.info(
+            "Getting today's articles",
+            user_id=self.user_id,
+            limit=limit,
+        )
 
-        # Get articles from last 24 hours
-        yesterday = datetime.utcnow() - timedelta(days=1)
+        # Get articles from today (last 24 hours)
+        cutoff_date = datetime.utcnow() - timedelta(days=1)
 
-        articles = self.db.query(Article).filter(
-            Article.fetched_at >= yesterday,
-            Article.processing_status == "completed"
-        ).order_by(
-            Article.fetched_at.desc()
-        ).limit(limit).all()
+        articles = list(
+            self.db[CosmosCollections.ARTICLES]
+            .find({
+                "scraped_at": {"$gte": cutoff_date},
+                "processing_status": "completed"
+            })
+            .sort("scraped_at", -1)
+            .limit(limit)
+        )
 
-        # Convert to dictionaries
-        result = [
-            {
-                "id": str(article.id),
-                "title": article.title,
-                "summary": article.summary_standard,
-                "source": article.source_id,
-                "url": article.url,
-                "published_at": article.published_at.isoformat() if article.published_at else None,
-                "fetched_at": article.fetched_at.isoformat() if article.fetched_at else None,
-            }
-            for article in articles
-        ]
-
-        # Cache for performance
-        self._cache[cache_key] = result
-
-        logger.info("todays_articles_fetched", count=len(result), user_id=self.user_id)
-
-        return result
+        logger.debug(f"Found {len(articles)} articles from today")
+        return articles
 
     def get_recent_digests(self, limit: int = 3) -> List[Dict[str, Any]]:
         """
@@ -97,33 +87,25 @@ class DigestContextMemory:
         Returns:
             List of digest dictionaries
         """
-        # Check cache
-        cache_key = f"recent_digests_{limit}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+        logger.info(
+            "Getting recent digests",
+            user_id=self.user_id,
+            limit=limit,
+        )
 
-        digests = self.db.query(Digest).filter(
-            Digest.user_id == self.user_id,
-            Digest.delivery_status == "sent"
-        ).order_by(
-            Digest.generated_at.desc()
-        ).limit(limit).all()
+        # Get recent digests sent to this user
+        digests = list(
+            self.db[CosmosCollections.DIGESTS]
+            .find({
+                "user_id": self.user_id,
+                "delivery_status": "sent"
+            })
+            .sort("sent_at", -1)
+            .limit(limit)
+        )
 
-        result = [
-            {
-                "id": str(digest.id),
-                "generated_at": digest.generated_at.isoformat() if digest.generated_at else None,
-                "article_count": digest.article_count or 0,
-                "summary": digest.personalized_intro[:200] + "..." if digest.personalized_intro and len(digest.personalized_intro) > 200 else digest.personalized_intro,
-            }
-            for digest in digests
-        ]
-
-        self._cache[cache_key] = result
-
-        logger.info("recent_digests_fetched", count=len(result), user_id=self.user_id)
-
-        return result
+        logger.debug(f"Found {len(digests)} recent digests")
+        return digests
 
     def get_context_summary(self) -> str:
         """
@@ -200,7 +182,7 @@ class DigestContextMemory:
 
 
 # Helper function for easy access
-def get_digest_context(user_id: str, db: Session) -> DigestContextMemory:
+def get_digest_context(user_id: str, db: Database) -> DigestContextMemory:
     """
     Get digest context memory for a user
 

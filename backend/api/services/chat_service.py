@@ -7,11 +7,13 @@ Provides conversational AI powered by LLMs with retrieval-augmented generation.
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import structlog
+import uuid
 
 from api.services.rag_service import get_rag_service, RAGContext
 from api.services.llm_provider import get_llm_client
-from api.db.session import SessionLocal
-from api.db.models import ChatSession, ChatMessage, User
+from api.db.session import get_db
+from api.db.cosmos_db import CosmosCollections
+from api.db.models import ChatSessionDocument, ChatMessageDocument
 
 logger = structlog.get_logger()
 
@@ -27,45 +29,44 @@ class ChatService:
         self,
         user_id: str,
         title: Optional[str] = None,
-    ) -> ChatSession:
+        context_type: Optional[str] = None,
+        context_id: Optional[str] = None,
+    ) -> dict:
         """
         Create a new chat session.
 
         Args:
             user_id: ID of the user
             title: Optional title for the session
+            context_type: Type of context (e.g., "digest", "article")
+            context_id: ID of the context object
 
         Returns:
-            ChatSession object
+            Chat session document
         """
-        db = SessionLocal()
-        try:
-            session = ChatSession(
-                user_id=user_id,
-                title=title or "New Chat",
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            )
-            db.add(session)
-            db.commit()
-            db.refresh(session)
+        db = get_db()
 
-            logger.info(
-                "Created chat session",
-                session_id=session.id,
-                user_id=user_id,
-            )
+        session = ChatSessionDocument.create(
+            user_id=user_id,
+            context_type=context_type,
+            context_id=context_id,
+        )
 
-            return session
+        db[CosmosCollections.CHAT_SESSIONS].insert_one(session)
 
-        finally:
-            db.close()
+        logger.info(
+            "Created chat session",
+            session_id=session["id"],
+            user_id=user_id,
+        )
+
+        return session
 
     async def get_session(
         self,
         session_id: str,
         user_id: str,
-    ) -> Optional[ChatSession]:
+    ) -> Optional[dict]:
         """
         Get a chat session by ID.
 
@@ -74,29 +75,22 @@ class ChatService:
             user_id: ID of the user (for authorization)
 
         Returns:
-            ChatSession object or None
+            Chat session document or None
         """
-        db = SessionLocal()
-        try:
-            session = (
-                db.query(ChatSession)
-                .filter(
-                    ChatSession.id == session_id,
-                    ChatSession.user_id == user_id,
-                )
-                .first()
-            )
+        db = get_db()
 
-            return session
+        session = db[CosmosCollections.CHAT_SESSIONS].find_one({
+            "id": session_id,
+            "user_id": user_id,
+        })
 
-        finally:
-            db.close()
+        return session
 
     async def get_user_sessions(
         self,
         user_id: str,
         limit: int = 20,
-    ) -> List[ChatSession]:
+    ) -> List[dict]:
         """
         Get all chat sessions for a user.
 
@@ -105,22 +99,18 @@ class ChatService:
             limit: Maximum number of sessions to return
 
         Returns:
-            List of ChatSession objects
+            List of chat session documents
         """
-        db = SessionLocal()
-        try:
-            sessions = (
-                db.query(ChatSession)
-                .filter(ChatSession.user_id == user_id)
-                .order_by(ChatSession.updated_at.desc())
-                .limit(limit)
-                .all()
-            )
+        db = get_db()
 
-            return sessions
+        sessions = list(
+            db[CosmosCollections.CHAT_SESSIONS]
+            .find({"user_id": user_id})
+            .sort("last_message_at", -1)
+            .limit(limit)
+        )
 
-        finally:
-            db.close()
+        return sessions
 
     async def send_message(
         self,
@@ -142,121 +132,111 @@ class ChatService:
 
         Returns:
             {
-                "user_message": ChatMessage,
-                "assistant_message": ChatMessage,
+                "user_message": dict,
+                "assistant_message": dict,
                 "context": RAGContext (if use_rag=True),
-                "session": ChatSession
+                "session": dict
             }
         """
-        db = SessionLocal()
-        try:
-            # Get session
-            session = (
-                db.query(ChatSession)
-                .filter(
-                    ChatSession.id == session_id,
-                    ChatSession.user_id == user_id,
-                )
-                .first()
-            )
+        db = get_db()
 
-            if not session:
-                raise ValueError(f"Session not found or unauthorized: {session_id}")
+        # Get session
+        session = db[CosmosCollections.CHAT_SESSIONS].find_one({
+            "id": session_id,
+            "user_id": user_id,
+        })
 
-            # Store user message
-            user_message = ChatMessage(
-                session_id=session_id,
-                role="user",
-                content=message,
-                created_at=datetime.utcnow(),
+        if not session:
+            raise ValueError(f"Session not found or unauthorized: {session_id}")
+
+        # Store user message
+        user_message = ChatMessageDocument.create(
+            session_id=session_id,
+            role="user",
+            content=message,
+        )
+        db[CosmosCollections.CHAT_MESSAGES].insert_one(user_message)
+
+        logger.info(
+            "User message stored",
+            session_id=session_id,
+            message_length=len(message),
+        )
+
+        # Retrieve context if RAG is enabled
+        context = None
+        if use_rag:
+            context = await self.rag_service.search_user_articles(
+                query=message,
+                user_id=user_id,
+                top_k=top_k,
             )
-            db.add(user_message)
-            db.commit()
-            db.refresh(user_message)
 
             logger.info(
-                "User message stored",
+                "Context retrieved",
                 session_id=session_id,
-                message_length=len(message),
+                articles_found=len(context.articles) if context else 0,
             )
 
-            # Retrieve context if RAG is enabled
-            context = None
-            if use_rag:
-                context = await self.rag_service.search_user_articles(
-                    query=message,
-                    user_id=user_id,
-                    top_k=top_k,
-                )
+        # Build conversation history
+        conversation_history = list(
+            db[CosmosCollections.CHAT_MESSAGES]
+            .find({"session_id": session_id})
+            .sort("created_at", 1)
+        )
 
-                logger.info(
-                    "Context retrieved",
-                    session_id=session_id,
-                    articles_found=len(context.articles),
-                )
+        # Generate AI response
+        assistant_response = await self._generate_response(
+            message=message,
+            context=context,
+            conversation_history=conversation_history[:-1],  # Exclude the message we just added
+        )
 
-            # Build conversation history
-            conversation_history = (
-                db.query(ChatMessage)
-                .filter(ChatMessage.session_id == session_id)
-                .order_by(ChatMessage.created_at.asc())
-                .all()
-            )
+        # Store assistant message
+        assistant_message = ChatMessageDocument.create(
+            session_id=session_id,
+            role="assistant",
+            content=assistant_response,
+            retrieved_articles=[
+                a["id"] for a in context.articles
+            ] if context and hasattr(context, "articles") else [],
+        )
+        db[CosmosCollections.CHAT_MESSAGES].insert_one(assistant_message)
 
-            # Generate AI response
-            assistant_response = await self._generate_response(
-                message=message,
-                context=context,
-                conversation_history=conversation_history[:-1],  # Exclude the message we just added
-            )
-
-            # Store assistant message
-            assistant_message = ChatMessage(
-                session_id=session_id,
-                role="assistant",
-                content=assistant_response,
-                created_at=datetime.utcnow(),
-                metadata={
-                    "articles_used": [a.id for a in context.articles] if context else [],
-                    "top_k": top_k,
-                },
-            )
-            db.add(assistant_message)
-
-            # Update session
-            session.updated_at = datetime.utcnow()
-            session.message_count = len(conversation_history) + 1
-
-            # Auto-generate title for first message
-            if session.message_count == 2 and session.title == "New Chat":
-                session.title = message[:50] + ("..." if len(message) > 50 else "")
-
-            db.commit()
-            db.refresh(assistant_message)
-            db.refresh(session)
-
-            logger.info(
-                "Assistant response generated",
-                session_id=session_id,
-                response_length=len(assistant_response),
-                articles_used=len(context.articles) if context else 0,
-            )
-
-            return {
-                "user_message": user_message,
-                "assistant_message": assistant_message,
-                "context": context,
-                "session": session,
+        # Update session
+        message_count = len(conversation_history) + 1
+        db[CosmosCollections.CHAT_SESSIONS].update_one(
+            {"id": session_id},
+            {
+                "$set": {
+                    "last_message_at": datetime.utcnow(),
+                    "message_count": message_count,
+                }
             }
+        )
 
-        finally:
-            db.close()
+        # Refresh session
+        session = db[CosmosCollections.CHAT_SESSIONS].find_one({"id": session_id})
+
+        logger.info(
+            "Assistant response generated",
+            session_id=session_id,
+            response_length=len(assistant_response),
+            articles_used=len(context.articles) if context and hasattr(context, "articles") else 0,
+        )
+
+        return {
+            "user_message": user_message,
+            "assistant_message": assistant_message,
+            "context": context,
+            "session": session,
+        }
 
     async def _generate_response(
         self,
         message: str,
         context: Optional[RAGContext] = None,
-        conversation_history: Optional[List[ChatMessage]] = None,
+        conversation_history: Optional[List[dict]] = None,
     ) -> str:
         """
         Generate AI response using LLM with RAG context.
@@ -285,8 +265,8 @@ Guidelines:
 - Focus on the user's question and be helpful"""
 
         # Build user prompt with context
-        if context and context.articles:
-            context_text = context.format_for_llm()
+        if context and hasattr(context, "articles") and context.articles:
+            context_text = context.format_for_llm() if hasattr(context, "format_for_llm") else str(context)
             user_prompt = f"""Based on the following articles:
 
 {context_text}
@@ -302,8 +282,8 @@ Please provide a helpful answer, citing specific articles using [1], [2], etc. w
         if conversation_history:
             for msg in conversation_history[-5:]:  # Last 5 messages for context
                 messages.append({
-                    "role": msg.role,
-                    "content": msg.content,
+                    "role": msg.get("role"),
+                    "content": msg.get("content"),
                 })
 
         # Add current message
@@ -343,44 +323,36 @@ Please provide a helpful answer, citing specific articles using [1], [2], etc. w
         Returns:
             True if deleted, False if not found
         """
-        db = SessionLocal()
-        try:
-            session = (
-                db.query(ChatSession)
-                .filter(
-                    ChatSession.id == session_id,
-                    ChatSession.user_id == user_id,
-                )
-                .first()
-            )
+        db = get_db()
 
-            if not session:
-                return False
+        session = db[CosmosCollections.CHAT_SESSIONS].find_one({
+            "id": session_id,
+            "user_id": user_id,
+        })
 
-            # Delete all messages first
-            db.query(ChatMessage).filter(ChatMessage.session_id == session_id).delete()
+        if not session:
+            return False
 
-            # Delete session
-            db.delete(session)
-            db.commit()
+        # Delete all messages first
+        db[CosmosCollections.CHAT_MESSAGES].delete_many({"session_id": session_id})
 
-            logger.info(
-                "Chat session deleted",
-                session_id=session_id,
-                user_id=user_id,
-            )
+        # Delete session
+        db[CosmosCollections.CHAT_SESSIONS].delete_one({"id": session_id})
 
-            return True
+        logger.info(
+            "Chat session deleted",
+            session_id=session_id,
+            user_id=user_id,
+        )
 
-        finally:
-            db.close()
+        return True
 
     async def get_messages(
         self,
         session_id: str,
         user_id: str,
         limit: int = 100,
-    ) -> List[ChatMessage]:
+    ) -> List[dict]:
         """
         Get messages from a chat session.
 
@@ -390,36 +362,28 @@ Please provide a helpful answer, citing specific articles using [1], [2], etc. w
             limit: Maximum number of messages to return
 
         Returns:
-            List of ChatMessage objects
+            List of chat message documents
         """
-        db = SessionLocal()
-        try:
-            # Verify session ownership
-            session = (
-                db.query(ChatSession)
-                .filter(
-                    ChatSession.id == session_id,
-                    ChatSession.user_id == user_id,
-                )
-                .first()
-            )
+        db = get_db()
 
-            if not session:
-                raise ValueError(f"Session not found or unauthorized: {session_id}")
+        # Verify session ownership
+        session = db[CosmosCollections.CHAT_SESSIONS].find_one({
+            "id": session_id,
+            "user_id": user_id,
+        })
 
-            # Get messages
-            messages = (
-                db.query(ChatMessage)
-                .filter(ChatMessage.session_id == session_id)
-                .order_by(ChatMessage.created_at.asc())
-                .limit(limit)
-                .all()
-            )
+        if not session:
+            raise ValueError(f"Session not found or unauthorized: {session_id}")
 
-            return messages
+        # Get messages
+        messages = list(
+            db[CosmosCollections.CHAT_MESSAGES]
+            .find({"session_id": session_id})
+            .sort("created_at", 1)
+            .limit(limit)
+        )
 
-        finally:
-            db.close()
+        return messages
 
 
 # Singleton instance

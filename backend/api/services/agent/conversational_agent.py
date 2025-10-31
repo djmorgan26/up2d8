@@ -6,7 +6,7 @@ for intelligent conversation about articles and digests.
 """
 from typing import TypedDict, List, Dict, Any, Optional, Annotated
 from datetime import datetime
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 import structlog
 
 from langgraph.graph import StateGraph, END
@@ -69,7 +69,7 @@ class ConversationalAgent:
         self,
         user_id: str,
         session_id: str,
-        db: Session,
+        db: Database,
         use_groq: bool = False
     ):
         """
@@ -456,7 +456,7 @@ class ConversationalAgent:
 def get_conversational_agent(
     user_id: str,
     session_id: str,
-    db: Session,
+    db: Database,
     use_groq: bool = False
 ) -> ConversationalAgent:
     """

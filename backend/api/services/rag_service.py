@@ -10,10 +10,13 @@ import structlog
 
 from api.services.embeddings import get_embedding_client
 from api.services.vector_db import get_vector_db, VectorSearchResult
-from api.db.session import SessionLocal
-from api.db.models import Article
+from api.db.session import get_database
+from api.db.cosmos_db import CosmosCollections
 
 logger = structlog.get_logger()
+
+# TODO: Refactor RAG service to fully work with MongoDB
+# For now, some methods are stubbed to prevent import errors
 
 
 class RAGContext:
@@ -21,7 +24,7 @@ class RAGContext:
 
     def __init__(
         self,
-        articles: List[Article],
+        articles: List[Dict[str, Any]],  # MongoDB docs as dicts
         relevance_scores: List[float],
         query: str,
     ):
@@ -36,13 +39,13 @@ class RAGContext:
             "articles_found": len(self.articles),
             "articles": [
                 {
-                    "id": article.id,
-                    "title": article.title,
-                    "summary": article.summary_standard,
-                    "source_url": article.source_url,
-                    "published_at": article.published_at.isoformat() if article.published_at else None,
-                    "companies": article.companies,
-                    "industries": article.industries,
+                    "id": article.get("id"),
+                    "title": article.get("title"),
+                    "summary": article.get("summary_standard"),
+                    "source_url": article.get("source_url"),
+                    "published_at": article.get("published_at").isoformat() if article.get("published_at") else None,
+                    "companies": article.get("companies"),
+                    "industries": article.get("industries"),
                     "relevance_score": score,
                 }
                 for article, score in zip(self.articles, self.relevance_scores)
@@ -129,13 +132,12 @@ class RAGService:
             article_ids = [result.id for result in search_results]
 
             # Fetch full articles from database
-            db = SessionLocal()
+            db = get_database()
             try:
-                articles = (
-                    db.query(Article)
-                    .filter(Article.id.in_(article_ids))
-                    .all()
-                )
+                # TODO: Implement MongoDB query to fetch articles by IDs
+                articles = list(db[CosmosCollections.ARTICLES].find(
+                    {"id": {"$in": article_ids}}
+                ))
 
                 # Create lookup for scores
                 score_lookup = {result.id: result.score for result in search_results}
@@ -146,23 +148,23 @@ class RAGService:
 
                 for article in articles:
                     # Date filter
-                    if date_from and article.published_at and article.published_at < date_from:
+                    if date_from and article.get("published_at") and article["published_at"] < date_from:
                         continue
-                    if date_to and article.published_at and article.published_at > date_to:
+                    if date_to and article.get("published_at") and article["published_at"] > date_to:
                         continue
 
                     # Company filter
-                    if filter_companies and article.companies:
-                        if not any(company in article.companies for company in filter_companies):
+                    if filter_companies and article.get("companies"):
+                        if not any(company in article["companies"] for company in filter_companies):
                             continue
 
                     # Industry filter
-                    if filter_industries and article.industries:
-                        if not any(industry in article.industries for industry in filter_industries):
+                    if filter_industries and article.get("industries"):
+                        if not any(industry in article.get("industries") for industry in filter_industries):
                             continue
 
                     filtered_articles.append(article)
-                    filtered_scores.append(score_lookup.get(article.id, 0.0))
+                    filtered_scores.append(score_lookup.get(article.get("id"), 0.0))
 
                 # Sort by relevance score and limit to top_k
                 sorted_pairs = sorted(
@@ -216,39 +218,34 @@ class RAGService:
         Returns:
             RAGContext with retrieved articles
         """
-        from api.db.models import User, UserPreference
+        from api.db.session import get_db
+        from api.db.cosmos_db import CosmosCollections
 
-        db = SessionLocal()
-        try:
-            # Get user preferences
-            user = db.query(User).filter(User.id == user_id).first()
-            if not user:
-                raise ValueError(f"User not found: {user_id}")
+        db = get_db()
 
-            preferences = (
-                db.query(UserPreference)
-                .filter(UserPreference.user_id == user_id)
-                .first()
-            )
+        # Get user
+        user = db[CosmosCollections.USERS].find_one({"id": user_id})
+        if not user:
+            raise ValueError(f"User not found: {user_id}")
 
-            # Extract user interests
-            filter_companies = preferences.subscribed_companies if preferences and preferences.subscribed_companies else None
-            filter_industries = preferences.subscribed_industries if preferences and preferences.subscribed_industries else None
+        # Get user preferences
+        preferences = db[CosmosCollections.USER_PREFERENCES].find_one({"user_id": user_id})
 
-            # Default to last 30 days
-            date_from = datetime.utcnow() - timedelta(days=30)
+        # Extract user interests
+        filter_companies = preferences.get("subscribed_companies") if preferences and preferences.get("subscribed_companies") else None
+        filter_industries = preferences.get("subscribed_industries") if preferences and preferences.get("subscribed_industries") else None
 
-            return await self.search_articles(
-                query=query,
-                user_id=user_id,
-                top_k=top_k,
-                filter_companies=filter_companies,
-                filter_industries=filter_industries,
-                date_from=date_from,
-            )
+        # Default to last 30 days
+        date_from = datetime.utcnow() - timedelta(days=30)
 
-        finally:
-            db.close()
+        return await self.search_articles(
+            query=query,
+            user_id=user_id,
+            top_k=top_k,
+            filter_companies=filter_companies,
+            filter_industries=filter_industries,
+            date_from=date_from,
+        )
 
     async def get_similar_articles(
         self,
@@ -267,16 +264,16 @@ class RAGService:
         """
         logger.info("Finding similar articles", article_id=article_id, top_k=top_k)
 
-        db = SessionLocal()
+        db = get_database()
         try:
             # Get the reference article
-            article = db.query(Article).filter(Article.id == article_id).first()
+            article = db[CosmosCollections.ARTICLES].find_one({"id": article_id})
 
             if not article:
                 raise ValueError(f"Article not found: {article_id}")
 
             # Use article title and summary as query
-            query = f"{article.title} {article.summary_standard or ''}"
+            query = f"{article['title']} {article.get('summary_standard') or ''}"
 
             # Search for similar articles
             context = await self.search_articles(
@@ -285,17 +282,17 @@ class RAGService:
             )
 
             # Filter out the original article
-            filtered_articles = [a for a in context.articles if a.id != article_id]
+            filtered_articles = [a for a in context.articles if a.get("id") != article_id]
             filtered_scores = [
                 score
                 for a, score in zip(context.articles, context.relevance_scores)
-                if a.id != article_id
+                if a.get("id") != article_id
             ]
 
             return RAGContext(
                 articles=filtered_articles[:top_k],
                 relevance_scores=filtered_scores[:top_k],
-                query=f"Similar to: {article.title}",
+                query=f"Similar to: {article['title']}",
             )
 
         finally:

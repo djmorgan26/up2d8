@@ -6,7 +6,7 @@ Enables the agent to find relevant information from the entire knowledge base.
 """
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 import structlog
 
 from api.services.rag_service import RAGService
@@ -26,7 +26,7 @@ class LongTermMemory:
     Priority: MEDIUM (broader but less recent context)
     """
 
-    def __init__(self, user_id: str, db: Session):
+    def __init__(self, user_id: str, db: Database):
         """
         Initialize long-term memory
 
@@ -175,7 +175,7 @@ class LongTermMemory:
 
 
 # Helper function for easy access
-def get_long_term_memory(user_id: str, db: Session) -> LongTermMemory:
+def get_long_term_memory(user_id: str, db: Database) -> LongTermMemory:
     """
     Get long-term memory for a user
 

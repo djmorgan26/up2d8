@@ -12,8 +12,8 @@ from typing import Dict, Any
 import structlog
 
 from workers.celery_app import celery_app
-from api.db.session import SessionLocal
-from api.db.models import Article
+from api.db.session import get_database
+from api.db.cosmos_db import CosmosCollections
 from api.services.summarizer import get_summarizer
 from api.services.embeddings import get_embedding_client
 from api.services.vector_db import get_vector_db
@@ -38,19 +38,19 @@ def process_article(self, article_id: str) -> Dict[str, Any]:
             "timestamp": str
         }
     """
-    db = SessionLocal()
+    db = get_database()
     start_time = datetime.utcnow()
 
     try:
         logger.info(f"Starting article processing for: {article_id}")
 
         # Get article from database
-        article = db.query(Article).filter(Article.id == article_id).first()
+        article = db[CosmosCollections.ARTICLES].find_one({"id": article_id})
 
         if not article:
             raise ValueError(f"Article not found: {article_id}")
 
-        if article.processing_status == "completed":
+        if article.get("processing_status") == "completed":
             logger.info(f"Article {article_id} already processed, skipping")
             return {
                 "success": True,
@@ -61,8 +61,10 @@ def process_article(self, article_id: str) -> Dict[str, Any]:
             }
 
         # Update status to processing
-        article.processing_status = "processing"
-        db.commit()
+        db[CosmosCollections.ARTICLES].update_one(
+            {"id": article_id},
+            {"$set": {"processing_status": "processing", "updated_at": datetime.utcnow()}}
+        )
 
         # Generate summaries with timeout handling
         summarizer = get_summarizer()
@@ -75,27 +77,27 @@ def process_article(self, article_id: str) -> Dict[str, Any]:
 
         summaries = loop.run_until_complete(
             summarizer.summarize_article(
-                title=article.title,
-                content=article.content or "",
-                author=article.author,
-                published_at=article.published_at,
+                title=article.get("title"),
+                content=article.get("content") or "",
+                author=article.get("author"),
+                published_at=article.get("published_at"),
             )
         )
 
-        # Update article with summary
-        article.summary_standard = summaries.get("summary_standard")
-
-        # Set other summary fields to None (single summary approach)
-        article.summary_micro = None
-        article.summary_detailed = None
-
         # Count summaries generated (should be 1)
-        summaries_generated = 1 if article.summary_standard else 0
+        summaries_generated = 1 if summaries.get("summary_standard") else 0
 
-        # Mark as completed
-        article.processing_status = "completed"
-        article.updated_at = datetime.utcnow()
-        db.commit()
+        # Update article with summary and mark as completed
+        db[CosmosCollections.ARTICLES].update_one(
+            {"id": article_id},
+            {"$set": {
+                "summary_standard": summaries.get("summary_standard"),
+                "summary_micro": None,
+                "summary_detailed": None,
+                "processing_status": "completed",
+                "updated_at": datetime.utcnow()
+            }}
+        )
 
         processing_time = (datetime.utcnow() - start_time).total_seconds()
 
@@ -120,11 +122,13 @@ def process_article(self, article_id: str) -> Dict[str, Any]:
 
         # Update article status to failed
         try:
-            article = db.query(Article).filter(Article.id == article_id).first()
-            if article:
-                article.processing_status = "failed"
-                article.updated_at = datetime.utcnow()
-                db.commit()
+            db[CosmosCollections.ARTICLES].update_one(
+                {"id": article_id},
+                {"$set": {
+                    "processing_status": "failed",
+                    "updated_at": datetime.utcnow()
+                }}
+            )
         except Exception as e:
             logger.error(f"Failed to update article status: {e}")
 
@@ -152,18 +156,17 @@ def process_pending_articles(self, limit: int = 50) -> Dict[str, Any]:
             "timestamp": str
         }
     """
-    db = SessionLocal()
+    db = get_database()
 
     try:
         logger.info(f"Processing pending articles (limit: {limit})")
 
         # Get pending articles
-        pending_articles = (
-            db.query(Article)
-            .filter(Article.processing_status == "pending")
-            .order_by(Article.fetched_at.desc())
+        pending_articles = list(
+            db[CosmosCollections.ARTICLES]
+            .find({"processing_status": "pending"})
+            .sort("fetched_at", -1)
             .limit(limit)
-            .all()
         )
 
         if not pending_articles:
@@ -179,9 +182,9 @@ def process_pending_articles(self, limit: int = 50) -> Dict[str, Any]:
         # Queue individual processing tasks
         tasks_queued = []
         for article in pending_articles:
-            task = process_article.delay(article.id)
+            task = process_article.delay(article.get("id"))
             tasks_queued.append(
-                {"article_id": article.id, "task_id": task.id, "title": article.title}
+                {"article_id": article.get("id"), "task_id": task.id, "title": article.get("title")}
             )
 
         result = {
@@ -295,19 +298,19 @@ def embed_article(self, article_id: str) -> Dict[str, Any]:
             "timestamp": str
         }
     """
-    db = SessionLocal()
+    db = get_database()
     start_time = datetime.utcnow()
 
     try:
         logger.info(f"Starting embedding generation for: {article_id}")
 
         # Get article from database
-        article = db.query(Article).filter(Article.id == article_id).first()
+        article = db[CosmosCollections.ARTICLES].find_one({"id": article_id})
 
         if not article:
             raise ValueError(f"Article not found: {article_id}")
 
-        if not article.summary_standard:
+        if not article.get("summary_standard"):
             logger.warning(f"Article {article_id} has no summary, skipping embedding")
             return {
                 "success": False,
@@ -316,9 +319,9 @@ def embed_article(self, article_id: str) -> Dict[str, Any]:
             }
 
         # Prepare text for embedding
-        embedding_text = f"{article.title}\n\n{article.summary_standard}"
-        if article.content and len(article.content) < 1000:
-            embedding_text += f"\n\n{article.content[:1000]}"
+        embedding_text = f"{article.get('title')}\n\n{article.get('summary_standard')}"
+        if article.get("content") and len(article.get("content")) < 1000:
+            embedding_text += f"\n\n{article.get('content')[:1000]}"
 
         # Generate embedding
         embedding_client = get_embedding_client()
@@ -336,11 +339,11 @@ def embed_article(self, article_id: str) -> Dict[str, Any]:
 
         metadata = {
             "article_id": article_id,
-            "title": article.title,
-            "source_id": article.source_id,
-            "published_at": article.published_at.isoformat() if article.published_at else None,
-            "companies": ",".join(article.companies) if article.companies else "",
-            "industries": ",".join(article.industries) if article.industries else "",
+            "title": article.get("title"),
+            "source_id": article.get("source_id"),
+            "published_at": article.get("published_at").isoformat() if article.get("published_at") else None,
+            "companies": ",".join(article.get("companies")) if article.get("companies") else "",
+            "industries": ",".join(article.get("industries")) if article.get("industries") else "",
         }
 
         loop.run_until_complete(
@@ -394,22 +397,21 @@ def embed_pending_articles(self, limit: int = 100) -> Dict[str, Any]:
             "timestamp": str
         }
     """
-    db = SessionLocal()
+    db = get_database()
 
     try:
         logger.info(f"Embedding pending articles (limit: {limit})")
 
         # Get articles with summaries but not yet embedded
         # For now, we'll just process completed articles
-        articles_to_embed = (
-            db.query(Article)
-            .filter(
-                Article.processing_status == "completed",
-                Article.summary_standard.isnot(None)
-            )
-            .order_by(Article.fetched_at.desc())
+        articles_to_embed = list(
+            db[CosmosCollections.ARTICLES]
+            .find({
+                "processing_status": "completed",
+                "summary_standard": {"$ne": None}
+            })
+            .sort("fetched_at", -1)
             .limit(limit)
-            .all()
         )
 
         if not articles_to_embed:
@@ -425,7 +427,7 @@ def embed_pending_articles(self, limit: int = 100) -> Dict[str, Any]:
         # Queue individual embedding tasks
         tasks_queued = []
         for article in articles_to_embed:
-            task = embed_article.delay(article.id)
+            task = embed_article.delay(article.get("id"))
             tasks_queued.append(task.id)
 
         result = {

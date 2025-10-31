@@ -6,12 +6,11 @@ from datetime import datetime, timedelta
 from typing import List
 
 from celery import Task
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from workers.celery_app import celery_app
 from api.db.session import get_db
-from api.db.models import Article, Source
+from api.db.cosmos_db import CosmosCollections
+from api.db.models import ArticleDocument, SourceDocument
 from api.services.scraper import create_scraper, SourceManager, ScrapedArticle
 
 logger = logging.getLogger(__name__)
@@ -53,26 +52,26 @@ def scrape_source(self, source_id: str) -> dict:
     logger.info(f"Starting scrape task for source: {source_id}")
 
     try:
-        # Get database session
-        db = next(get_db())
+        # Get database
+        db = get_db()
 
         # Get source from database
-        source_record = db.query(Source).filter(Source.id == source_id).first()
+        source_record = db[CosmosCollections.SOURCES].find_one({"id": source_id})
 
         if not source_record:
             logger.error(f"Source not found: {source_id}")
             return {"success": False, "error": "Source not found", "articles_count": 0}
 
-        if not source_record.active:
+        if not source_record.get("active", True):
             logger.info(f"Source is inactive: {source_id}")
             return {"success": False, "error": "Source inactive", "articles_count": 0}
 
         # Create scraper
         scraper = create_scraper(
-            source_id=source_record.id,
-            source_type=source_record.type,
-            source_url=source_record.url,
-            config=source_record.config or {},
+            source_id=source_record["id"],
+            source_type=source_record["type"],
+            source_url=source_record.get("url", ""),
+            config=source_record.get("config", {}),
         )
 
         # Run scraper (handle async)
@@ -92,10 +91,8 @@ def scrape_source(self, source_id: str) -> dict:
         for article in articles:
             try:
                 # Check for duplicates by URL
-                existing = (
-                    db.query(Article)
-                    .filter(Article.source_url == article.source_url)
-                    .first()
+                existing = db[CosmosCollections.ARTICLES].find_one(
+                    {"source_url": article.source_url}
                 )
 
                 if existing:
@@ -104,44 +101,53 @@ def scrape_source(self, source_id: str) -> dict:
                     continue
 
                 # Check for duplicates by content hash
-                existing_hash = (
-                    db.query(Article)
-                    .filter(Article.content_hash == article.content_hash)
-                    .first()
+                existing_hash = db[CosmosCollections.ARTICLES].find_one(
+                    {"content_hash": article.content_hash}
                 )
 
                 if existing_hash:
                     # Mark as duplicate
                     article_data = article.to_dict()
-                    article_data["duplicate_of"] = existing_hash.id
+                    article_data["duplicate_of"] = existing_hash["id"]
                     article_data["canonical"] = False
-                    new_article = Article(**article_data)
-                    db.add(new_article)
-                    db.flush()  # Generate ID immediately
+                    article_doc = ArticleDocument.create(
+                        source_id=source_id,
+                        source_url=article_data["source_url"],
+                        title=article_data["title"],
+                        **article_data
+                    )
+                    db[CosmosCollections.ARTICLES].insert_one(article_doc)
                     duplicate_count += 1
                 else:
                     # New article
-                    new_article = Article(**article.to_dict())
-                    db.add(new_article)
-                    db.flush()  # Generate ID immediately
+                    article_data = article.to_dict()
+                    article_doc = ArticleDocument.create(
+                        source_id=source_id,
+                        source_url=article_data["source_url"],
+                        title=article_data["title"],
+                        **article_data
+                    )
+                    db[CosmosCollections.ARTICLES].insert_one(article_doc)
                     stored_count += 1
 
             except Exception as e:
                 logger.error(f"Error storing article: {e}", exc_info=True)
-                db.rollback()  # Rollback failed article
                 continue
 
-        # Commit all articles
-        db.commit()
-
         # Update source metadata
-        source_record.last_checked_at = datetime.utcnow()
-        source_record.next_check_at = datetime.utcnow() + timedelta(
-            hours=source_record.check_interval_hours
+        db[CosmosCollections.SOURCES].update_one(
+            {"id": source_id},
+            {
+                "$set": {
+                    "last_checked_at": datetime.utcnow(),
+                    "next_check_at": datetime.utcnow() + timedelta(
+                        hours=source_record.get("check_interval_hours", 6)
+                    ),
+                    "last_error": None,
+                },
+                "$inc": {"success_count": 1},
+            }
         )
-        source_record.success_count += 1
-        source_record.last_error = None
-        db.commit()
 
         result = {
             "success": True,
@@ -160,13 +166,17 @@ def scrape_source(self, source_id: str) -> dict:
 
         # Update source error status
         try:
-            db = next(get_db())
-            source_record = db.query(Source).filter(Source.id == source_id).first()
-            if source_record:
-                source_record.failure_count += 1
-                source_record.last_error = str(exc)
-                source_record.last_checked_at = datetime.utcnow()
-                db.commit()
+            db = get_db()
+            db[CosmosCollections.SOURCES].update_one(
+                {"id": source_id},
+                {
+                    "$set": {
+                        "last_error": str(exc),
+                        "last_checked_at": datetime.utcnow(),
+                    },
+                    "$inc": {"failure_count": 1},
+                }
+            )
         except Exception as db_err:
             logger.error(f"Error updating source error status: {db_err}")
 
@@ -196,21 +206,24 @@ def scrape_priority_sources(priority: str = "high") -> dict:
 
         logger.info(f"Found {len(sources)} {priority} priority sources")
 
+        # Get database
+        db = get_db()
+
         # Dispatch individual scrape tasks
         results = []
         for source in sources:
             try:
                 # Check if source needs scraping (based on last_checked_at)
-                db = next(get_db())
-                source_record = (
-                    db.query(Source).filter(Source.id == source["id"]).first()
+                source_record = db[CosmosCollections.SOURCES].find_one(
+                    {"id": source["id"]}
                 )
 
                 if source_record:
                     # Check if it's time to scrape
-                    if source_record.next_check_at and source_record.next_check_at > datetime.utcnow():
+                    next_check_at = source_record.get("next_check_at")
+                    if next_check_at and next_check_at > datetime.utcnow():
                         logger.debug(
-                            f"Skipping {source['id']}, next check at {source_record.next_check_at}"
+                            f"Skipping {source['id']}, next check at {next_check_at}"
                         )
                         continue
 
@@ -311,8 +324,8 @@ def sync_sources_to_db() -> dict:
         manager = SourceManager()
         yaml_sources = manager.sources
 
-        # Get database session
-        db = next(get_db())
+        # Get database
+        db = get_db()
 
         created_count = 0
         updated_count = 0
@@ -320,53 +333,54 @@ def sync_sources_to_db() -> dict:
         for source_config in yaml_sources:
             try:
                 # Check if source exists
-                source_record = (
-                    db.query(Source).filter(Source.id == source_config["id"]).first()
+                source_record = db[CosmosCollections.SOURCES].find_one(
+                    {"id": source_config["id"]}
                 )
 
                 if source_record:
                     # Update existing source
-                    source_record.name = source_config["name"]
-                    source_record.type = source_config["type"]
-                    source_record.url = source_config.get("url", "")
-                    source_record.config = source_config.get("config", {})
-                    source_record.check_interval_hours = source_config.get(
-                        "check_interval_hours", 6
+                    db[CosmosCollections.SOURCES].update_one(
+                        {"id": source_config["id"]},
+                        {
+                            "$set": {
+                                "name": source_config["name"],
+                                "type": source_config["type"],
+                                "url": source_config.get("url", ""),
+                                "config": source_config.get("config", {}),
+                                "check_interval_hours": source_config.get(
+                                    "check_interval_hours", 6
+                                ),
+                                "priority": source_config.get("priority", "medium"),
+                                "authority_score": source_config.get("authority_score", 50),
+                                "companies": source_config.get("companies", []),
+                                "industries": source_config.get("industries", []),
+                                "active": source_config.get("active", True),
+                                "updated_at": datetime.utcnow(),
+                            }
+                        }
                     )
-                    source_record.priority = source_config.get("priority", "medium")
-                    source_record.authority_score = source_config.get(
-                        "authority_score", 50
-                    )
-                    source_record.companies = source_config.get("companies", [])
-                    source_record.industries = source_config.get("industries", [])
-                    source_record.active = source_config.get("active", True)
                     updated_count += 1
                 else:
                     # Create new source
-                    new_source = Source(
-                        id=source_config["id"],
+                    new_source = SourceDocument.create(
+                        source_id=source_config["id"],
                         name=source_config["name"],
-                        type=source_config["type"],
+                        source_type=source_config["type"],
                         url=source_config.get("url", ""),
                         config=source_config.get("config", {}),
-                        check_interval_hours=source_config.get(
-                            "check_interval_hours", 6
-                        ),
+                        check_interval_hours=source_config.get("check_interval_hours", 6),
                         priority=source_config.get("priority", "medium"),
                         authority_score=source_config.get("authority_score", 50),
                         companies=source_config.get("companies", []),
                         industries=source_config.get("industries", []),
                         active=source_config.get("active", True),
                     )
-                    db.add(new_source)
+                    db[CosmosCollections.SOURCES].insert_one(new_source)
                     created_count += 1
 
             except Exception as e:
                 logger.error(f"Error syncing source {source_config['id']}: {e}")
                 continue
-
-        # Commit changes
-        db.commit()
 
         result = {
             "success": True,

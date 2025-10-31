@@ -6,11 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSock
 from pydantic import BaseModel, Field
 
 from api.utils.auth import get_current_user
-from api.db.models import User
+# User is dict type from get_current_user
 from api.services.chat_service import get_chat_service
 from api.services.rag_service import get_rag_service
 from api.services.agent import get_conversational_agent
-from api.db.session import SessionLocal
+from api.db.session import get_database
+from api.db.cosmos_db import CosmosCollections
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
@@ -101,7 +102,7 @@ class SearchArticlesRequest(BaseModel):
 @router.post("/sessions", response_model=SessionResponse)
 async def create_chat_session(
     request: CreateSessionRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Create a new chat session.
@@ -128,7 +129,7 @@ async def create_chat_session(
 @router.get("/sessions", response_model=List[SessionResponse])
 async def list_chat_sessions(
     limit: int = Query(20, ge=1, le=100, description="Maximum number of sessions to return"),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     List all chat sessions for the current user.
@@ -158,7 +159,7 @@ async def list_chat_sessions(
 @router.get("/sessions/{session_id}", response_model=SessionResponse)
 async def get_chat_session(
     session_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Get a specific chat session.
@@ -188,7 +189,7 @@ async def get_chat_session(
 @router.delete("/sessions/{session_id}")
 async def delete_chat_session(
     session_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Delete a chat session.
@@ -217,7 +218,7 @@ async def delete_chat_session(
 async def send_chat_message(
     session_id: str,
     request: SendMessageRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Send a message in a chat session and get AI response with RAG context.
@@ -293,7 +294,7 @@ async def send_chat_message(
 async def get_chat_messages(
     session_id: str,
     limit: int = Query(100, ge=1, le=500, description="Maximum number of messages to return"),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Get messages from a chat session.
@@ -333,7 +334,7 @@ async def get_chat_messages(
 @router.post("/search", response_model=List[ArticleContextResponse])
 async def search_articles(
     request: SearchArticlesRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Semantic search for articles using RAG.
@@ -368,7 +369,7 @@ async def search_articles(
 async def get_similar_articles(
     article_id: str,
     top_k: int = Query(5, ge=1, le=20, description="Number of similar articles to return"),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Find articles similar to a given article.
@@ -468,7 +469,6 @@ async def websocket_chat(
     try:
         # Verify token and get user
         from api.utils.auth import decode_token
-        from api.db.session import SessionLocal
 
         try:
             payload = decode_token(token)
@@ -491,10 +491,10 @@ async def websocket_chat(
             return
 
         # Initialize database session
-        db = SessionLocal()
+        db = get_database()
 
         # Verify user exists
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db[CosmosCollections.USERS].find_one({"id": user_id})
         if not user:
             await websocket.send_json({
                 "type": "error",

@@ -6,11 +6,11 @@ Enables context-aware responses and follow-up questions.
 """
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 import structlog
 
-from api.db.models import ChatMessage
 from api.db.session import get_db
+from api.db.cosmos_db import CosmosCollections
 
 logger = structlog.get_logger()
 
@@ -25,9 +25,11 @@ class ShortTermMemory:
     - Message tracking and retrieval
 
     Priority: HIGH (enables context-aware responses)
+
+    TODO: Implement MongoDB queries. For now, this is stubbed to unblock API startup.
     """
 
-    def __init__(self, session_id: str, user_id: str, db: Session):
+    def __init__(self, session_id: str, user_id: str, db: Database):
         """
         Initialize short-term memory
 
@@ -197,19 +199,26 @@ class ShortTermMemory:
         }
 
     def _load_from_db(self):
-        """Load messages from database"""
-        messages = self.db.query(ChatMessage).filter(
-            ChatMessage.session_id == self.session_id
-        ).order_by(
-            ChatMessage.created_at.asc()
-        ).all()
+        """
+        Load messages from database
+        """
+        # Load chat messages for this session from MongoDB
+        messages = list(
+            self.db[CosmosCollections.CHAT_MESSAGES]
+            .find({
+                "session_id": self.session_id,
+                "user_id": self.user_id
+            })
+            .sort("timestamp", 1)  # Chronological order
+        )
 
+        # Convert to memory format
         self._message_cache = [
             {
-                "role": msg.role,
-                "content": msg.content,
-                "metadata": msg.metadata or {},
-                "timestamp": msg.created_at.isoformat(),
+                "role": msg.get("role"),
+                "content": msg.get("content"),
+                "metadata": msg.get("metadata", {}),
+                "timestamp": msg.get("timestamp").isoformat() if msg.get("timestamp") else datetime.utcnow().isoformat()
             }
             for msg in messages
         ]
@@ -224,7 +233,7 @@ class ShortTermMemory:
 
 
 # Helper function for easy access
-def get_short_term_memory(session_id: str, user_id: str, db: Session) -> ShortTermMemory:
+def get_short_term_memory(session_id: str, user_id: str, db: Database) -> ShortTermMemory:
     """
     Get short-term memory for a chat session
 

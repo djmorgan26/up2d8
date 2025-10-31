@@ -11,18 +11,10 @@ Calculates relevance scores for articles based on:
 
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
+from pymongo.database import Database
 import structlog
 
-from api.db.models import (
-    Article,
-    User,
-    UserPreference,
-    UserPreferenceProfile,
-    ArticleFeedback,
-    EmailEvent,
-)
+from api.db.cosmos_db import CosmosCollections
 
 logger = structlog.get_logger()
 
@@ -48,36 +40,32 @@ class RelevanceScorer:
     WEIGHT_QUALITY = 0.15
     WEIGHT_DIVERSITY = 0.10
 
-    def __init__(self, db: Session, user: User):
+    def __init__(self, db: Database, user: dict):
         self.db = db
         self.user = user
         self.preferences = self._get_user_preferences()
         self.preference_profile = self._get_preference_profile()
 
-    def _get_user_preferences(self) -> Optional[UserPreference]:
+    def _get_user_preferences(self) -> Optional[dict]:
         """Get user's explicit preferences."""
-        return (
-            self.db.query(UserPreference)
-            .filter(UserPreference.user_id == self.user.id)
-            .first()
+        return self.db[CosmosCollections.USER_PREFERENCES].find_one(
+            {"user_id": self.user["id"]}
         )
 
-    def _get_preference_profile(self) -> Optional[UserPreferenceProfile]:
+    def _get_preference_profile(self) -> Optional[dict]:
         """Get user's learned preference profile."""
-        return (
-            self.db.query(UserPreferenceProfile)
-            .filter(UserPreferenceProfile.user_id == self.user.id)
-            .first()
+        return self.db[CosmosCollections.USER_PREFERENCE_PROFILES].find_one(
+            {"user_id": self.user["id"]}
         )
 
     def score_article(
-        self, article: Article, already_included: List[str] = None
+        self, article: dict, already_included: List[str] = None
     ) -> Dict[str, float]:
         """
         Calculate relevance score for an article.
 
         Args:
-            article: Article to score
+            article: dict to score
             already_included: List of company/industry strings already in digest
 
         Returns:
@@ -117,7 +105,7 @@ class RelevanceScorer:
             "diversity_score": round(diversity_score, 2),
         }
 
-    def _calculate_preference_match_score(self, article: Article) -> float:
+    def _calculate_preference_match_score(self, article: dict) -> float:
         """
         Score based on explicit user preferences.
 
@@ -134,40 +122,40 @@ class RelevanceScorer:
         score = 0.0
 
         # Check company matches
-        if self.preferences.subscribed_companies and article.companies:
-            company_matches = set(self.preferences.subscribed_companies) & set(
-                article.companies
+        if self.preferences.get("subscribed_companies") and article.get("companies"):
+            company_matches = set(self.preferences.get("subscribed_companies")) & set(
+                article.get("companies")
             )
             if company_matches:
                 score = max(score, 100.0)
 
         # Check industry matches
-        if self.preferences.subscribed_industries and article.industries:
-            industry_matches = set(self.preferences.subscribed_industries) & set(
-                article.industries
+        if self.preferences.get("subscribed_industries") and article.get("industries"):
+            industry_matches = set(self.preferences.get("subscribed_industries")) & set(
+                article.get("industries")
             )
             if industry_matches:
                 score = max(score, 75.0)
 
         # Check technology matches
-        if self.preferences.subscribed_technologies and article.technologies:
-            tech_matches = set(self.preferences.subscribed_technologies) & set(
-                article.technologies
+        if self.preferences.get("subscribed_technologies") and article.get("technologies"):
+            tech_matches = set(self.preferences.get("subscribed_technologies")) & set(
+                article.get("technologies")
             )
             if tech_matches:
                 score = max(score, 50.0)
 
         # Check people matches
-        if self.preferences.subscribed_people and article.people:
-            people_matches = set(self.preferences.subscribed_people) & set(
-                article.people
+        if self.preferences.get("subscribed_people") and article.get("people"):
+            people_matches = set(self.preferences.get("subscribed_people")) & set(
+                article.get("people")
             )
             if people_matches:
                 score = max(score, 50.0)
 
         return score
 
-    def _calculate_engagement_score(self, article: Article) -> float:
+    def _calculate_engagement_score(self, article: dict) -> float:
         """
         Score based on learned preferences from user feedback.
 
@@ -180,25 +168,25 @@ class RelevanceScorer:
         weight_count = 0
 
         # Score based on company weights
-        if article.companies and self.preference_profile.company_weights:
-            for company in article.companies:
-                weight = self.preference_profile.company_weights.get(company)
+        if article.get("companies") and self.preference_profile.get("company_weights"):
+            for company in article.get("companies"):
+                weight = self.preference_profile.get("company_weights").get(company)
                 if weight is not None:
                     score += weight * 100  # Convert 0-1 weight to 0-100 score
                     weight_count += 1
 
         # Score based on industry weights
-        if article.industries and self.preference_profile.industry_weights:
-            for industry in article.industries:
-                weight = self.preference_profile.industry_weights.get(industry)
+        if article.get("industries") and self.preference_profile.get("industry_weights"):
+            for industry in article.get("industries"):
+                weight = self.preference_profile.get("industry_weights").get(industry)
                 if weight is not None:
                     score += weight * 100
                     weight_count += 1
 
         # Score based on topic weights
-        if article.categories and self.preference_profile.topic_weights:
-            for topic in article.categories:
-                weight = self.preference_profile.topic_weights.get(topic)
+        if article.get("categories") and self.preference_profile.get("topic_weights"):
+            for topic in article.get("categories"):
+                weight = self.preference_profile.get("topic_weights").get(topic)
                 if weight is not None:
                     score += weight * 100
                     weight_count += 1
@@ -209,7 +197,7 @@ class RelevanceScorer:
 
         return 50.0  # Neutral if no applicable weights found
 
-    def _calculate_recency_score(self, article: Article) -> float:
+    def _calculate_recency_score(self, article: dict) -> float:
         """
         Score based on how recent the article is.
 
@@ -220,11 +208,11 @@ class RelevanceScorer:
         - 18-24 hours: 40 points
         - Older: decay exponentially
         """
-        if not article.published_at:
+        if not article.get("published_at"):
             return 50.0  # Neutral if no publish date
 
         now = datetime.utcnow()
-        age_hours = (now - article.published_at).total_seconds() / 3600
+        age_hours = (now - article.get("published_at")).total_seconds() / 3600
 
         if age_hours < 6:
             return 100.0
@@ -240,23 +228,23 @@ class RelevanceScorer:
             # Exponential decay after 48 hours
             return max(0, 20.0 * (0.5 ** ((age_hours - 48) / 24)))
 
-    def _calculate_quality_score(self, article: Article) -> float:
+    def _calculate_quality_score(self, article: dict) -> float:
         """
         Score based on article quality.
 
         Uses existing quality_score field (0-1) and converts to 0-100.
         """
-        if article.quality_score is not None:
-            return float(article.quality_score) * 100
+        if article.get("quality_score") is not None:
+            return float(article.get("quality_score")) * 100
 
         # Fallback to impact score if quality score not available
-        if article.impact_score is not None:
-            return article.impact_score * 10  # Convert 1-10 to 10-100
+        if article.get("impact_score") is not None:
+            return article.get("impact_score") * 10  # Convert 1-10 to 10-100
 
         return 50.0  # Neutral if no quality metrics
 
     def _calculate_diversity_score(
-        self, article: Article, already_included: List[str]
+        self, article: dict, already_included: List[str]
     ) -> float:
         """
         Score to promote diversity and avoid echo chamber.
@@ -271,8 +259,8 @@ class RelevanceScorer:
         score = 100.0  # Start with perfect diversity score
 
         # Check if companies already heavily represented
-        if article.companies:
-            for company in article.companies:
+        if article.get("companies"):
+            for company in article.get("companies"):
                 count_in_included = already_included.count(company)
                 if count_in_included >= 3:
                     score -= 30  # Significant penalty for over-representation
@@ -282,8 +270,8 @@ class RelevanceScorer:
                     score -= 5
 
         # Check if industries already heavily represented
-        if article.industries:
-            for industry in article.industries:
+        if article.get("industries"):
+            for industry in article.get("industries"):
                 count_in_included = already_included.count(industry)
                 if count_in_included >= 2:
                     score -= 20
@@ -295,15 +283,15 @@ class RelevanceScorer:
 
 
 def score_articles_for_digest(
-    db: Session, user: User, articles: List[Article]
+    db: Database, user: dict, articles: List[dict]
 ) -> List[tuple]:
     """
     Score a list of articles and return them sorted by relevance.
 
     Args:
         db: Database session
-        user: User to score for
-        articles: List of articles to score
+        user: User to score for (dict)
+        articles: List of articles to score (dicts)
 
     Returns:
         List of (article, scores_dict) tuples sorted by total_score descending
@@ -318,17 +306,17 @@ def score_articles_for_digest(
         scored_articles.append((article, scores))
 
         # Track what we've included for diversity scoring
-        if article.companies:
-            already_included.extend(article.companies)
-        if article.industries:
-            already_included.extend(article.industries)
+        if article.get("companies"):
+            already_included.extend(article.get("companies"))
+        if article.get("industries"):
+            already_included.extend(article.get("industries"))
 
     # Sort by total_score descending
     scored_articles.sort(key=lambda x: x[1]["total_score"], reverse=True)
 
     logger.info(
         "Scored articles for digest",
-        user_id=user.id,
+        user_id=user["id"],
         total_articles=len(articles),
         top_score=scored_articles[0][1]["total_score"] if scored_articles else 0,
     )

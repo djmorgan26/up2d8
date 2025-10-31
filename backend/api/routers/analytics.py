@@ -3,14 +3,14 @@ Analytics API endpoints for querying business insights.
 """
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 from typing import List, Dict, Any
 import structlog
 
 from api.db.session import get_db
 from api.services.analytics_tracker import get_analytics_tracker
 from api.utils.auth import get_current_user
-from api.db.models import User
+# User is dict type from get_current_user
 
 logger = structlog.get_logger()
 
@@ -20,8 +20,8 @@ router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
 @router.get("/companies/top")
 async def get_top_companies(
     limit: int = Query(default=10, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
 ) -> List[Dict[str, Any]]:
     """
     Get top companies by user engagement.
@@ -38,8 +38,8 @@ async def get_top_companies(
 @router.get("/industries/top")
 async def get_top_industries(
     limit: int = Query(default=10, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
 ) -> List[Dict[str, Any]]:
     """
     Get top industries by user engagement.
@@ -52,8 +52,8 @@ async def get_top_industries(
 
 @router.get("/sources/performance")
 async def get_source_performance(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
 ) -> List[Dict[str, Any]]:
     """
     Get performance metrics for all sources.
@@ -70,8 +70,8 @@ async def get_source_performance(
 @router.get("/daily/stats")
 async def get_daily_stats(
     days: int = Query(default=7, ge=1, le=90),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
 ) -> List[Dict[str, Any]]:
     """
     Get daily aggregated statistics for trend analysis.
@@ -88,8 +88,8 @@ async def get_daily_stats(
 
 @router.get("/summary")
 async def get_analytics_summary(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Get a comprehensive analytics summary dashboard.
@@ -116,7 +116,7 @@ async def get_analytics_summary(
 async def track_article_view(
     article_id: str,
     user_id: str = None,
-    db: Session = Depends(get_db),
+    db: Database = Depends(get_db),
 ) -> Dict[str, str]:
     """
     Track when a user clicks/views an article from their digest.

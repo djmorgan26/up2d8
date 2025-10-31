@@ -7,12 +7,11 @@ Considers user preferences, article relevance, and timing.
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
+from pymongo.database import Database
 import structlog
 
-from api.db.models import Article, User, UserPreference, Source
-from api.services.relevance_scorer import score_articles_for_digest
+from api.db.models import Collections
+from api.db.cosmos_db import CosmosCollections
 
 logger = structlog.get_logger()
 
@@ -28,12 +27,12 @@ class DigestBuilder:
     - Source authority
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Database):
         self.db = db
 
     def build_daily_digest(
         self,
-        user: User,
+        user: dict,
         max_articles: int = 10,
         hours_lookback: int = 24,
     ) -> Dict[str, Any]:
@@ -41,7 +40,7 @@ class DigestBuilder:
         Build a daily digest for a user.
 
         Args:
-            user: User to build digest for
+            user: User dict from MongoDB
             max_articles: Maximum number of articles to include
             hours_lookback: How far back to look for articles (hours)
 
@@ -51,129 +50,103 @@ class DigestBuilder:
                 "user_email": str,
                 "user_name": str,
                 "digest_date": str,
-                "articles": [
-                    {
-                        "id": str,
-                        "title": str,
-                        "summary": str,
-                        "source": str,
-                        "url": str,
-                        "published_at": str,
-                        "companies": list,
-                        "industries": list,
-                    }
-                ],
+                "articles": [...],
                 "article_count": int,
                 "personalized": bool,
             }
         """
+        user_id = user.get("id")
         logger.info(
-            f"Building daily digest for user {user.id}",
-            email=user.email,
+            f"Building daily digest for user {user_id}",
+            email=user.get("email"),
             max_articles=max_articles,
         )
 
         # Get user preferences
-        preferences = (
-            self.db.query(UserPreference)
-            .filter(UserPreference.user_id == user.id)
-            .first()
+        preferences = self.db[CosmosCollections.USER_PREFERENCES].find_one(
+            {"user_id": user_id}
         )
 
         # Calculate time window
         cutoff_time = datetime.utcnow() - timedelta(hours=hours_lookback)
 
-        # Build query for articles
-        query = (
-            self.db.query(Article)
-            .filter(
-                and_(
-                    Article.processing_status == "completed",
-                    Article.fetched_at >= cutoff_time,
-                    Article.summary_standard.isnot(None),
-                )
-            )
-        )
+        # Build MongoDB query for articles
+        article_query = {
+            "processing_status": "completed",
+            "fetched_at": {"$gte": cutoff_time},
+            "summary_standard": {"$ne": None, "$exists": True},
+        }
 
         # Apply personalization filters if preferences exist
         personalized = False
         if preferences:
-            # Filter by user's subscribed companies (using PostgreSQL && overlap operator)
-            if preferences.subscribed_companies:
-                query = query.filter(
-                    Article.companies.op('&&')(preferences.subscribed_companies)
-                )
+            # Filter by user's subscribed companies/industries (MongoDB $in operator)
+            subscribed_companies = preferences.get("subscribed_companies", [])
+            subscribed_industries = preferences.get("subscribed_industries", [])
+
+            if subscribed_companies or subscribed_industries:
+                or_conditions = []
+                if subscribed_companies:
+                    or_conditions.append({"companies": {"$in": subscribed_companies}})
+                if subscribed_industries:
+                    or_conditions.append({"industries": {"$in": subscribed_industries}})
+
+                article_query["$or"] = or_conditions
                 personalized = True
 
-            # Filter by user's subscribed industries (using PostgreSQL && overlap operator)
-            if preferences.subscribed_industries:
-                query = query.filter(
-                    Article.industries.op('&&')(preferences.subscribed_industries)
-                )
-                personalized = True
-
-        # Get candidate articles (fetch more than needed for scoring)
-        candidate_articles = (
-            query.order_by(Article.published_at.desc())
-            .limit(max_articles * 3)  # Fetch 3x to have pool for scoring
-            .all()
+        # Get candidate articles
+        candidate_articles = list(
+            self.db[CosmosCollections.ARTICLES]
+            .find(article_query)
+            .sort("published_at", -1)
+            .limit(max_articles * 3)
         )
 
         logger.info(
             f"Found {len(candidate_articles)} candidate articles for digest",
-            user_id=user.id,
+            user_id=user_id,
             personalized=personalized,
         )
 
-        # If no personalized results, get top articles from high-authority sources
+        # If no personalized results, get top recent articles
         if len(candidate_articles) == 0 and personalized:
             logger.info("No personalized articles found, falling back to top articles")
-            candidate_articles = (
-                self.db.query(Article)
-                .join(Source, Article.source_id == Source.id)
-                .filter(
-                    and_(
-                        Article.processing_status == "completed",
-                        Article.fetched_at >= cutoff_time,
-                        Article.summary_standard.isnot(None),
-                    )
-                )
-                .order_by(Source.authority_score.desc(), Article.published_at.desc())
+            candidate_articles = list(
+                self.db[CosmosCollections.ARTICLES]
+                .find({
+                    "processing_status": "completed",
+                    "fetched_at": {"$gte": cutoff_time},
+                    "summary_standard": {"$ne": None, "$exists": True},
+                })
+                .sort("published_at", -1)
                 .limit(max_articles * 2)
-                .all()
             )
             personalized = False
 
-        # Score articles using relevance scorer
-        scored_articles = score_articles_for_digest(self.db, user, candidate_articles)
-
-        # Take top N by relevance score
-        articles = [article for article, scores in scored_articles[:max_articles]]
-        article_scores = {
-            article.id: scores for article, scores in scored_articles[:max_articles]
-        }
+        # Simple scoring: take most recent articles
+        # TODO: Implement proper relevance scoring
+        articles = candidate_articles[:max_articles]
 
         # Format articles for digest
         formatted_articles = []
         for article in articles:
             # Get source info
-            source = self.db.query(Source).filter(Source.id == article.source_id).first()
-
-            # Get relevance scores for this article
-            scores = article_scores.get(article.id, {})
+            source = self.db[CosmosCollections.SOURCES].find_one(
+                {"id": article.get("source_id")}
+            )
 
             formatted_articles.append({
-                "id": article.id,
-                "title": article.title,
-                "summary": article.summary_standard or "No summary available.",
-                "source": source.name if source else "Unknown",
-                "url": article.source_url,
-                "published_at": article.published_at.isoformat() if article.published_at else None,
-                "companies": article.companies or [],
-                "industries": article.industries or [],
-                "author": article.author,
-                "relevance_score": scores.get("total_score", 0),
-                "scoring_factors": scores,  # Include all scoring components
+                "id": article.get("id"),
+                "title": article.get("title"),
+                "summary": article.get("summary_standard") or "No summary available.",
+                "source": source.get("name") if source else "Unknown",
+                "url": article.get("source_url"),
+                "published_at": article.get("published_at").isoformat() if article.get("published_at") else None,
+                "companies": article.get("companies", []),
+                "industries": article.get("industries", []),
+                "author": article.get("author"),
+                "relevance_score": 1.0,  # TODO: Implement scoring
+                "scoring_factors": {},
             })
 
         # Get base URL from environment (for feedback links)
@@ -181,9 +154,9 @@ class DigestBuilder:
         base_url = os.getenv("BASE_URL", "http://localhost:8000")
 
         digest = {
-            "user_id": user.id,
-            "user_email": user.email,
-            "user_name": user.full_name,
+            "user_id": user_id,
+            "user_email": user.get("email"),
+            "user_name": user.get("full_name"),
             "digest_date": datetime.utcnow().strftime("%Y-%m-%d"),
             "digest_day": datetime.utcnow().strftime("%A, %B %d, %Y"),
             "articles": formatted_articles,
@@ -193,7 +166,7 @@ class DigestBuilder:
         }
 
         logger.info(
-            f"Built digest for {user.email}",
+            f"Built digest for {user.get('email')}",
             article_count=len(formatted_articles),
             personalized=personalized,
         )
@@ -214,11 +187,11 @@ class DigestBuilder:
         logger.info(f"Building test digest for {user_email}")
 
         # Try to find the user by email
-        user = self.db.query(User).filter(User.email == user_email).first()
+        user = self.db[CosmosCollections.USERS].find_one({"email": user_email})
         if user:
-            logger.info(f"Found user {user.id} for test digest")
-            user_id = user.id
-            user_name = user.full_name or user_name
+            logger.info(f"Found user {user.get('id')} for test digest")
+            user_id = user.get("id")
+            user_name = user.get("full_name") or user_name
         else:
             logger.warning(f"User {user_email} not found, creating test digest without feedback tracking")
             user_id = None
@@ -226,19 +199,15 @@ class DigestBuilder:
         # Get recent completed articles
         cutoff_time = datetime.utcnow() - timedelta(hours=48)  # Last 2 days
 
-        articles = (
-            self.db.query(Article)
-            .join(Source, Article.source_id == Source.id)
-            .filter(
-                and_(
-                    Article.processing_status == "completed",
-                    Article.fetched_at >= cutoff_time,
-                    Article.summary_standard.isnot(None),
-                )
-            )
-            .order_by(Source.authority_score.desc(), Article.published_at.desc())
+        articles = list(
+            self.db[CosmosCollections.ARTICLES]
+            .find({
+                "processing_status": "completed",
+                "fetched_at": {"$gte": cutoff_time},
+                "summary_standard": {"$ne": None, "$exists": True},
+            })
+            .sort("published_at", -1)
             .limit(10)
-            .all()
         )
 
         logger.info(f"Found {len(articles)} articles for test digest")
@@ -246,18 +215,20 @@ class DigestBuilder:
         # Format articles
         formatted_articles = []
         for article in articles:
-            source = self.db.query(Source).filter(Source.id == article.source_id).first()
+            source = self.db[CosmosCollections.SOURCES].find_one(
+                {"id": article.get("source_id")}
+            )
 
             formatted_articles.append({
-                "id": article.id,
-                "title": article.title,
-                "summary": article.summary_standard or "No summary available.",
-                "source": source.name if source else "Unknown",
-                "url": article.source_url,
-                "published_at": article.published_at.isoformat() if article.published_at else None,
-                "companies": article.companies or [],
-                "industries": article.industries or [],
-                "author": article.author,
+                "id": article.get("id"),
+                "title": article.get("title"),
+                "summary": article.get("summary_standard") or "No summary available.",
+                "source": source.get("name") if source else "Unknown",
+                "url": article.get("source_url"),
+                "published_at": article.get("published_at").isoformat() if article.get("published_at") else None,
+                "companies": article.get("companies", []),
+                "industries": article.get("industries", []),
+                "author": article.get("author"),
             })
 
         # Get base URL from environment (for feedback links)
@@ -281,6 +252,6 @@ class DigestBuilder:
         return digest
 
 
-def get_digest_builder(db: Session) -> DigestBuilder:
+def get_digest_builder(db: Database) -> DigestBuilder:
     """Factory function to get a DigestBuilder instance."""
     return DigestBuilder(db)

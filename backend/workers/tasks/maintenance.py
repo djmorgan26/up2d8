@@ -4,8 +4,8 @@ import logging
 from datetime import datetime, timedelta
 
 from workers.celery_app import celery_app
-from api.db.session import get_db
-from api.db.models import Article
+from api.db.session import get_database
+from api.db.cosmos_db import CosmosCollections
 
 logger = logging.getLogger(__name__)
 
@@ -19,21 +19,23 @@ def cleanup_old_data() -> dict:
     logger.info("Starting cleanup of old data")
 
     try:
-        db = next(get_db())
+        db = get_database()
 
         # Archive articles older than 1 year
         cutoff_date = datetime.utcnow() - timedelta(days=365)
 
-        archived_count = (
-            db.query(Article)
-            .filter(
-                Article.published_at < cutoff_date,
-                Article.processing_status != "archived",
-            )
-            .update({"processing_status": "archived"})
+        result = db[CosmosCollections.ARTICLES].update_many(
+            {
+                "published_at": {"$lt": cutoff_date},
+                "processing_status": {"$ne": "archived"}
+            },
+            {"$set": {
+                "processing_status": "archived",
+                "updated_at": datetime.utcnow()
+            }}
         )
 
-        db.commit()
+        archived_count = result.modified_count
 
         return {
             "success": True,

@@ -9,14 +9,14 @@ Endpoints:
 
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from pymongo.database import Database
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 import structlog
 
 from api.db.session import get_db
-from api.db.models import User, Digest
+from api.db.cosmos_db import CosmosCollections
+# User is dict type from get_current_user
 from api.utils.auth import get_current_user
 from workers.tasks.digests import send_test_digest, generate_user_digest
 
@@ -76,8 +76,8 @@ class DigestHistoryResponse(BaseModel):
 @router.post("/test", response_model=DigestTaskResponse, status_code=status.HTTP_202_ACCEPTED)
 async def send_test_digest_endpoint(
     request: TestDigestRequest = TestDigestRequest(),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
 ):
     """
     Send a test digest to the current user or specified email.
@@ -94,12 +94,12 @@ async def send_test_digest_endpoint(
         Task ID and status message
     """
     # Use current user's email if not specified
-    email = request.email or current_user.email
-    name = request.name or current_user.full_name or "User"
+    email = request.email or current_user["email"]
+    name = request.name or current_user.get("full_name") or "User"
 
     logger.info(
         f"Triggering test digest for {email}",
-        user_id=current_user.id,
+        user_id=current_user["id"],
         email=email,
     )
 
@@ -111,15 +111,15 @@ async def send_test_digest_endpoint(
 
     return DigestTaskResponse(
         task_id=task.id,
-        user_id=current_user.id,
+        user_id=current_user["id"],
         message=f"Test digest generation queued for {email}. Check your email in a few moments.",
     )
 
 
 @router.post("/generate", response_model=DigestTaskResponse, status_code=status.HTTP_202_ACCEPTED)
 async def generate_digest_endpoint(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
 ):
     """
     Generate and send a personalized digest for the current user.
@@ -133,24 +133,24 @@ async def generate_digest_endpoint(
         Task ID and status message
     """
     logger.info(
-        f"Triggering digest generation for user {current_user.id}",
-        email=current_user.email,
+        f"Triggering digest generation for user {current_user['id']}",
+        email=current_user["email"],
     )
 
     # Queue the Celery task
-    task = generate_user_digest.delay(user_id=current_user.id)
+    task = generate_user_digest.delay(user_id=current_user["id"])
 
     return DigestTaskResponse(
         task_id=task.id,
-        user_id=current_user.id,
-        message=f"Digest generation queued for {current_user.email}. Check your email in a few moments.",
+        user_id=current_user["id"],
+        message=f"Digest generation queued for {current_user['email']}. Check your email in a few moments.",
     )
 
 
 @router.get("/history", response_model=DigestHistoryResponse)
 async def get_digest_history(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
     limit: int = Query(default=30, le=100, description="Maximum number of digests to return"),
     offset: int = Query(default=0, ge=0, description="Number of digests to skip"),
 ):
@@ -170,40 +170,40 @@ async def get_digest_history(
         List of digest records with metadata
     """
     # Get total count
-    total_count = (
-        db.query(Digest)
-        .filter(Digest.user_id == current_user.id)
-        .count()
+    total_count = db[CosmosCollections.DIGESTS].count_documents(
+        {"user_id": current_user["id"]}
     )
 
     # Get paginated digests
-    digests = (
-        db.query(Digest)
-        .filter(Digest.user_id == current_user.id)
-        .order_by(desc(Digest.sent_at))
+    digests = list(
+        db[CosmosCollections.DIGESTS]
+        .find({"user_id": current_user["id"]})
+        .sort("sent_at", -1)
+        .skip(offset)
         .limit(limit)
-        .offset(offset)
-        .all()
     )
 
     logger.info(
-        f"Retrieved {len(digests)} digests for user {current_user.id}",
+        f"Retrieved {len(digests)} digests for user {current_user['id']}",
         total_count=total_count,
         limit=limit,
         offset=offset,
     )
 
+    # Convert to DigestResponse objects
+    digest_responses = [DigestResponse(**digest) for digest in digests]
+
     return DigestHistoryResponse(
         total_count=total_count,
-        digests=digests,
+        digests=digest_responses,
     )
 
 
 @router.get("/{digest_id}", response_model=DigestResponse)
 async def get_digest(
     digest_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
 ):
     """
     Get details for a specific digest.
@@ -220,7 +220,7 @@ async def get_digest(
         404: Digest not found
         403: Digest does not belong to user
     """
-    digest = db.query(Digest).filter(Digest.id == digest_id).first()
+    digest = db[CosmosCollections.DIGESTS].find_one({"id": digest_id})
 
     if not digest:
         raise HTTPException(
@@ -228,10 +228,10 @@ async def get_digest(
             detail="Digest not found",
         )
 
-    if digest.user_id != current_user.id:
+    if digest["user_id"] != current_user["id"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Digest does not belong to user",
         )
 
-    return digest
+    return DigestResponse(**digest)

@@ -219,8 +219,8 @@ export const LoginPage: React.FC = () => {
             {/* Dev hint */}
             <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
               <p className="font-semibold mb-1">Test Account:</p>
-              <p>Email: <code className="bg-white px-1 py-0.5 rounded">digest_test@test.com</code></p>
-              <p>Password: <code className="bg-white px-1 py-0.5 rounded">testpassword123</code></p>
+              <p>Email: <code className="bg-white px-1 py-0.5 rounded">davidjmorgan26@gmail.com</code></p>
+              <p>Password: <code className="bg-white px-1 py-0.5 rounded">password12345</code></p>
             </div>
           </div>
         </div>

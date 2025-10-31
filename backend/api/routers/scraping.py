@@ -2,11 +2,10 @@
 
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Path
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 from pydantic import BaseModel
 
 from api.db.session import get_db
-from api.db.models import Source, Article, User
 from api.utils.auth import get_current_user
 from workers.tasks.scraping import (
     scrape_source,
@@ -88,22 +87,28 @@ class ScrapeResultResponse(BaseModel):
 async def list_sources(
     active_only: bool = Query(True, description="Show only active sources"),
     priority: Optional[str] = Query(None, description="Filter by priority (high, medium, low)"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Database = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """List all content sources.
 
     Requires authentication.
     """
-    query = db.query(Source)
+    from api.db.cosmos_db import CosmosCollections
 
+    # Build MongoDB query
+    query_filter = {}
     if active_only:
-        query = query.filter(Source.active == True)
-
+        query_filter["active"] = True
     if priority:
-        query = query.filter(Source.priority == priority)
+        query_filter["priority"] = priority
 
-    sources = query.order_by(Source.priority.desc(), Source.name).all()
+    # Fetch sources
+    sources = list(
+        db[CosmosCollections.SOURCES]
+        .find(query_filter)
+        .sort([("priority", -1), ("name", 1)])
+    )
 
     return sources
 
@@ -111,14 +116,16 @@ async def list_sources(
 @router.get("/sources/{source_id}", response_model=SourceResponse)
 async def get_source(
     source_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Database = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """Get details for a specific source.
 
     Requires authentication.
     """
-    source = db.query(Source).filter(Source.id == source_id).first()
+    from api.db.cosmos_db import CosmosCollections
+
+    source = db[CosmosCollections.SOURCES].find_one({"id": source_id})
 
     if not source:
         raise HTTPException(status_code=404, detail=f"Source not found: {source_id}")
@@ -128,7 +135,7 @@ async def get_source(
 
 @router.post("/sources/sync", response_model=dict)
 async def sync_sources(
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """Sync sources from YAML config to database.
 
@@ -152,15 +159,17 @@ async def sync_sources(
 @router.post("/scrape/{source_id}", response_model=ScrapeTaskResponse)
 async def trigger_scrape_single(
     source_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Database = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """Manually trigger scraping for a single source.
 
     Requires authentication.
     """
+    from api.db.cosmos_db import CosmosCollections
+
     # Verify source exists
-    source = db.query(Source).filter(Source.id == source_id).first()
+    source = db[CosmosCollections.SOURCES].find_one({"id": source_id})
 
     if not source:
         raise HTTPException(status_code=404, detail=f"Source not found: {source_id}")
@@ -171,13 +180,13 @@ async def trigger_scrape_single(
     return {
         "task_id": task.id,
         "source_id": source_id,
-        "message": f"Scraping task queued for {source.name}",
+        "message": f"Scraping task queued for {source['name']}",
     }
 
 
 @router.post("/scrape/all", response_model=ScrapeResultResponse)
 async def trigger_scrape_all(
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """Manually trigger scraping for all active sources.
 
@@ -196,7 +205,7 @@ async def trigger_scrape_all(
 @router.post("/scrape/priority/{priority}", response_model=ScrapeResultResponse)
 async def trigger_scrape_by_priority(
     priority: str = Path(..., regex="^(high|medium|low)$"),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """Manually trigger scraping for sources of a specific priority.
 
@@ -223,26 +232,29 @@ async def list_articles(
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     source_id: Optional[str] = Query(None, description="Filter by source ID"),
     status: Optional[str] = Query(None, description="Filter by processing status"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Database = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """List recently scraped articles.
 
     Requires authentication.
     """
-    query = db.query(Article)
+    from api.db.cosmos_db import CosmosCollections
 
+    # Build MongoDB query
+    query_filter = {}
     if source_id:
-        query = query.filter(Article.source_id == source_id)
-
+        query_filter["source_id"] = source_id
     if status:
-        query = query.filter(Article.processing_status == status)
+        query_filter["processing_status"] = status
 
-    articles = (
-        query.order_by(Article.fetched_at.desc())
-        .offset(offset)
+    # Fetch articles
+    articles = list(
+        db[CosmosCollections.ARTICLES]
+        .find(query_filter)
+        .sort("fetched_at", -1)
+        .skip(offset)
         .limit(limit)
-        .all()
     )
 
     return articles
@@ -250,38 +262,46 @@ async def list_articles(
 
 @router.get("/articles/stats")
 async def get_article_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Database = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """Get statistics about scraped articles.
 
     Requires authentication.
     """
-    from sqlalchemy import func
+    from api.db.cosmos_db import CosmosCollections
 
-    total_articles = db.query(func.count(Article.id)).scalar()
+    # Total articles
+    total_articles = db[CosmosCollections.ARTICLES].count_documents({})
 
-    articles_by_status = (
-        db.query(Article.processing_status, func.count(Article.id))
-        .group_by(Article.processing_status)
-        .all()
-    )
+    # Articles by status (aggregation)
+    by_status_pipeline = [
+        {"$group": {"_id": "$processing_status", "count": {"$sum": 1}}}
+    ]
+    by_status_results = list(db[CosmosCollections.ARTICLES].aggregate(by_status_pipeline))
+    articles_by_status = {item["_id"]: item["count"] for item in by_status_results}
 
-    articles_by_source = (
-        db.query(Source.name, func.count(Article.id))
-        .join(Article, Source.id == Article.source_id)
-        .group_by(Source.name)
-        .order_by(func.count(Article.id).desc())
-        .limit(10)
-        .all()
-    )
+    # Articles by source (aggregation with lookup)
+    by_source_pipeline = [
+        {"$group": {"_id": "$source_id", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10}
+    ]
+    by_source_results = list(db[CosmosCollections.ARTICLES].aggregate(by_source_pipeline))
+
+    # Fetch source names
+    top_sources = []
+    for item in by_source_results:
+        source = db[CosmosCollections.SOURCES].find_one({"id": item["_id"]})
+        top_sources.append({
+            "source": source["name"] if source else item["_id"],
+            "count": item["count"]
+        })
 
     return {
         "total_articles": total_articles,
-        "by_status": {status: count for status, count in articles_by_status},
-        "top_sources": [
-            {"source": name, "count": count} for name, count in articles_by_source
-        ],
+        "by_status": articles_by_status,
+        "top_sources": top_sources,
     }
 
 
@@ -293,7 +313,7 @@ async def get_article_stats(
 @router.get("/tasks/{task_id}")
 async def get_task_status(
     task_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """Get status of a Celery task.
 
@@ -319,30 +339,27 @@ async def get_task_status(
 
 @router.get("/health")
 async def scraping_health(
-    db: Session = Depends(get_db),
+    db: Database = Depends(get_db),
 ):
     """Health check for scraping system.
 
     No authentication required.
     """
     from datetime import datetime, timedelta
+    from api.db.cosmos_db import CosmosCollections
 
     # Check how many sources are active
-    active_sources = db.query(func.count(Source.id)).filter(Source.active == True).scalar()
+    active_sources = db[CosmosCollections.SOURCES].count_documents({"active": True})
 
     # Check recent scraping activity (last 24 hours)
     yesterday = datetime.utcnow() - timedelta(days=1)
-    recent_articles = (
-        db.query(func.count(Article.id))
-        .filter(Article.fetched_at >= yesterday)
-        .scalar()
+    recent_articles = db[CosmosCollections.ARTICLES].count_documents(
+        {"fetched_at": {"$gte": yesterday}}
     )
 
     # Check for sources with recent failures
-    failing_sources = (
-        db.query(func.count(Source.id))
-        .filter(Source.failure_count > 3, Source.active == True)
-        .scalar()
+    failing_sources = db[CosmosCollections.SOURCES].count_documents(
+        {"failure_count": {"$gt": 3}, "active": True}
     )
 
     return {

@@ -19,7 +19,7 @@ from api.utils.auth import (
     verify_password,
     create_token_pair,
     decode_token,
-    get_current_user_mongo,
+    get_current_user,
 )
 
 
@@ -249,7 +249,7 @@ async def refresh_token(token_data: TokenRefresh):
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
-    current_user: dict = Depends(get_current_user_mongo),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Logout user (invalidate tokens).
@@ -271,7 +271,7 @@ async def logout(
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: dict = Depends(get_current_user_mongo)):
+async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     """
     Get current authenticated user's information.
 

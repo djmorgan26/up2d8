@@ -68,8 +68,8 @@ async def get_my_preferences(
 @router.put("/me", response_model=PreferenceResponse)
 async def update_my_preferences(
     updates: PreferenceUpdate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
 ):
     """
     Update current user's preferences.
@@ -78,54 +78,68 @@ async def update_my_preferences(
     """
     try:
         # Get or create preferences
-        preferences = db.query(UserPreference).filter(
-            UserPreference.user_id == current_user.id
-        ).first()
-
-        if not preferences:
-            preferences = UserPreference(user_id=current_user.id)
-            db.add(preferences)
+        prefs_collection = db[Collections.USER_PREFERENCES]
+        preferences = prefs_collection.find_one({"user_id": current_user["id"]})
 
         # Update fields (only if provided)
         update_data = updates.model_dump(exclude_unset=True)
 
+        # Process updates
+        update_dict = {"$set": {"updated_at": datetime.utcnow()}}
+
         for field, value in update_data.items():
-            if field == "delivery_time" and value is not None:
-                # Convert string to time object
-                parts = value.split(":")
-                value = time(hour=int(parts[0]), minute=int(parts[1]))
+            if value is not None:
+                if field == "delivery_time":
+                    # Keep as string in MongoDB
+                    update_dict["$set"][field] = value
+                else:
+                    update_dict["$set"][field] = value
 
-            setattr(preferences, field, value)
-
-        db.commit()
-        db.refresh(preferences)
-
-        logger.info(
-            f"Updated preferences for user {current_user.email}",
-            updated_fields=list(update_data.keys())
-        )
+        if not preferences:
+            # Create new preferences with updates
+            new_prefs = UserPreferenceDocument.create(user_id=current_user["id"])
+            for field, value in update_data.items():
+                if value is not None:
+                    new_prefs[field] = value
+            prefs_collection.insert_one(new_prefs)
+            preferences = new_prefs
+            logger.info(
+                f"Created preferences for user {current_user['email']}",
+                updated_fields=list(update_data.keys())
+            )
+        else:
+            # Update existing preferences
+            prefs_collection.update_one(
+                {"user_id": current_user["id"]},
+                update_dict
+            )
+            # Fetch updated document
+            preferences = prefs_collection.find_one({"user_id": current_user["id"]})
+            logger.info(
+                f"Updated preferences for user {current_user['email']}",
+                updated_fields=list(update_data.keys())
+            )
 
         # Return updated preferences
         response_data = {
-            "subscribed_companies": preferences.subscribed_companies or [],
-            "subscribed_industries": preferences.subscribed_industries or [],
-            "subscribed_technologies": preferences.subscribed_technologies or [],
-            "subscribed_people": preferences.subscribed_people or [],
-            "digest_frequency": preferences.digest_frequency,
-            "delivery_time": preferences.delivery_time.strftime("%H:%M:%S"),
-            "timezone": preferences.timezone,
-            "delivery_days": preferences.delivery_days or [1, 2, 3, 4, 5],
-            "email_format": preferences.email_format,
-            "article_count_per_digest": preferences.article_count_per_digest,
-            "summary_style": preferences.summary_style,
-            "notification_preferences": preferences.notification_preferences or {},
-            "content_filters": preferences.content_filters or {},
+            "subscribed_companies": preferences.get("subscribed_companies", []),
+            "subscribed_industries": preferences.get("subscribed_industries", []),
+            "subscribed_technologies": preferences.get("subscribed_technologies", []),
+            "subscribed_people": preferences.get("subscribed_people", []),
+            "digest_frequency": preferences.get("digest_frequency", "daily"),
+            "delivery_time": preferences.get("delivery_time", "08:00:00"),
+            "timezone": preferences.get("timezone", "America/New_York"),
+            "delivery_days": preferences.get("delivery_days", [1, 2, 3, 4, 5]),
+            "email_format": preferences.get("email_format", "html"),
+            "article_count_per_digest": preferences.get("article_count_per_digest", 7),
+            "summary_style": preferences.get("summary_style", "standard"),
+            "notification_preferences": preferences.get("notification_preferences", {}),
+            "content_filters": preferences.get("content_filters", {}),
         }
 
         return PreferenceResponse(**response_data)
 
     except Exception as e:
-        db.rollback()
         logger.error(f"Error updating preferences: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -136,14 +150,13 @@ async def update_my_preferences(
 @router.delete("/me/companies/{company}")
 async def remove_company_subscription(
     company: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
 ):
     """Remove a company from subscribed companies."""
     try:
-        preferences = db.query(UserPreference).filter(
-            UserPreference.user_id == current_user.id
-        ).first()
+        prefs_collection = db[Collections.USER_PREFERENCES]
+        preferences = prefs_collection.find_one({"user_id": current_user["id"]})
 
         if not preferences:
             raise HTTPException(
@@ -151,10 +164,14 @@ async def remove_company_subscription(
                 detail="Preferences not found"
             )
 
-        if preferences.subscribed_companies and company in preferences.subscribed_companies:
-            preferences.subscribed_companies.remove(company)
-            db.commit()
-            logger.info(f"Removed company {company} for user {current_user.email}")
+        subscribed_companies = preferences.get("subscribed_companies", [])
+        if company in subscribed_companies:
+            # Use MongoDB $pull operator to remove from array
+            prefs_collection.update_one(
+                {"user_id": current_user["id"]},
+                {"$pull": {"subscribed_companies": company}}
+            )
+            logger.info(f"Removed company {company} for user {current_user['email']}")
             return {"message": f"Removed {company} from subscriptions"}
 
         raise HTTPException(
@@ -165,7 +182,6 @@ async def remove_company_subscription(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
         logger.error(f"Error removing company subscription: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -176,32 +192,35 @@ async def remove_company_subscription(
 @router.post("/me/companies/{company}")
 async def add_company_subscription(
     company: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+    db: Database = Depends(get_db),
 ):
     """Add a company to subscribed companies."""
     try:
-        preferences = db.query(UserPreference).filter(
-            UserPreference.user_id == current_user.id
-        ).first()
+        prefs_collection = db[Collections.USER_PREFERENCES]
+        preferences = prefs_collection.find_one({"user_id": current_user["id"]})
 
         if not preferences:
-            preferences = UserPreference(user_id=current_user.id)
-            db.add(preferences)
+            # Create new preferences with company
+            new_prefs = UserPreferenceDocument.create(user_id=current_user["id"])
+            new_prefs["subscribed_companies"] = [company]
+            prefs_collection.insert_one(new_prefs)
+            logger.info(f"Created preferences and added company {company} for user {current_user['email']}")
+            return {"message": f"Added {company} to subscriptions"}
 
-        if not preferences.subscribed_companies:
-            preferences.subscribed_companies = []
-
-        if company not in preferences.subscribed_companies:
-            preferences.subscribed_companies.append(company)
-            db.commit()
-            logger.info(f"Added company {company} for user {current_user.email}")
+        subscribed_companies = preferences.get("subscribed_companies", [])
+        if company not in subscribed_companies:
+            # Use MongoDB $addToSet to add unique value to array
+            prefs_collection.update_one(
+                {"user_id": current_user["id"]},
+                {"$addToSet": {"subscribed_companies": company}}
+            )
+            logger.info(f"Added company {company} for user {current_user['email']}")
             return {"message": f"Added {company} to subscriptions"}
 
         return {"message": f"{company} already subscribed"}
 
     except Exception as e:
-        db.rollback()
         logger.error(f"Error adding company subscription: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

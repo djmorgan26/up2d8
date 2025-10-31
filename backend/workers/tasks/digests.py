@@ -13,8 +13,8 @@ from typing import Dict, Any
 import structlog
 
 from workers.celery_app import celery_app
-from api.db.session import SessionLocal
-from api.db.models import User, UserPreference
+from api.db.session import get_database
+from api.db.cosmos_db import CosmosCollections
 from api.services.digest_builder import get_digest_builder
 from api.services.digest_service import get_digest_service
 
@@ -38,7 +38,7 @@ def send_test_digest(self, email: str, name: str = "Test User") -> Dict[str, Any
             "timestamp": str
         }
     """
-    db = SessionLocal()
+    db = get_database()
 
     try:
         logger.info(f"Generating test digest for {email}")
@@ -104,18 +104,18 @@ def generate_user_digest(self, user_id: str) -> Dict[str, Any]:
             "timestamp": str
         }
     """
-    db = SessionLocal()
+    db = get_database()
 
     try:
         logger.info(f"Generating digest for user {user_id}")
 
         # Get user
-        user = db.query(User).filter(User.id == user_id).first()
+        user = db[CosmosCollections.USERS].find_one({"id": user_id})
 
         if not user:
             raise ValueError(f"User not found: {user_id}")
 
-        if user.status != "active":
+        if user.get("status") != "active":
             logger.info(f"Skipping digest for inactive user {user_id}")
             return {
                 "success": False,
@@ -134,7 +134,7 @@ def generate_user_digest(self, user_id: str) -> Dict[str, Any]:
             return {
                 "success": True,
                 "user_id": user_id,
-                "user_email": user.email,
+                "user_email": user.get("email"),
                 "article_count": 0,
                 "skipped": True,
                 "reason": "no_articles",
@@ -186,7 +186,7 @@ def generate_user_digest(self, user_id: str) -> Dict[str, Any]:
         result = {
             "success": success,
             "user_id": user_id,
-            "user_email": user.email,
+            "user_email": user.get("email"),
             "article_count": digest_data['article_count'],
             "personalized": digest_data['personalized'],
             "digest_id": digest_record.id,
@@ -195,13 +195,13 @@ def generate_user_digest(self, user_id: str) -> Dict[str, Any]:
 
         if success:
             logger.info(
-                f"Digest sent to {user.email}",
+                f"Digest sent to {user.get('email')}",
                 article_count=digest_data['article_count'],
                 personalized=digest_data['personalized'],
                 digest_id=digest_record.id
             )
         else:
-            logger.error(f"Failed to send digest to {user.email}")
+            logger.error(f"Failed to send digest to {user.get('email')}")
 
         return result
 
@@ -243,7 +243,7 @@ def generate_scheduled_digests(self, hour: int = None) -> Dict[str, Any]:
     from datetime import timezone as dt_timezone
     import pytz
 
-    db = SessionLocal()
+    db = get_database()
 
     try:
         if hour is None:
@@ -252,24 +252,50 @@ def generate_scheduled_digests(self, hour: int = None) -> Dict[str, Any]:
         logger.info(f"Generating scheduled digests for UTC hour {hour}")
 
         # Find users who should receive digest at this hour
-        # Get all active users with preferences
-        users_with_prefs = (
-            db.query(User, UserPreference)
-            .join(UserPreference, User.id == UserPreference.user_id)
-            .filter(User.status == "active")
-            .filter(UserPreference.digest_frequency == "daily")
-            .all()
-        )
+        # Get all active users with daily digest preferences using MongoDB aggregation
+        pipeline = [
+            # Lookup user preferences
+            {
+                "$lookup": {
+                    "from": CosmosCollections.USER_PREFERENCES,
+                    "localField": "id",
+                    "foreignField": "user_id",
+                    "as": "preferences"
+                }
+            },
+            # Unwind preferences array
+            {"$unwind": "$preferences"},
+            # Filter active users with daily digest
+            {
+                "$match": {
+                    "status": "active",
+                    "preferences.digest_frequency": "daily"
+                }
+            }
+        ]
+
+        users_with_prefs = list(db[CosmosCollections.USERS].aggregate(pipeline))
 
         logger.info(f"Found {len(users_with_prefs)} active users with daily digest preference")
 
         # Queue individual digest tasks for users scheduled at this hour
         tasks_queued = []
-        for user, preferences in users_with_prefs:
+        for user_doc in users_with_prefs:
             try:
+                user = user_doc  # user itself
+                preferences = user_doc.get("preferences", {})
+
                 # Get user's timezone and delivery time
-                user_tz = pytz.timezone(preferences.timezone)
-                delivery_time = preferences.delivery_time
+                user_tz = pytz.timezone(preferences.get("timezone", "America/New_York"))
+                delivery_time_str = preferences.get("delivery_time", "08:00:00")
+
+                # Parse delivery_time string to get hour
+                from datetime import time
+                if isinstance(delivery_time_str, str):
+                    parts = delivery_time_str.split(":")
+                    delivery_time = time(hour=int(parts[0]), minute=int(parts[1]))
+                else:
+                    delivery_time = delivery_time_str
 
                 # Get current time in user's timezone
                 current_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
@@ -279,24 +305,24 @@ def generate_scheduled_digests(self, hour: int = None) -> Dict[str, Any]:
                 if current_user_time.hour == delivery_time.hour:
                     # Check if today is in delivery_days (1=Mon, 7=Sun)
                     weekday = current_user_time.isoweekday()
-                    if weekday in preferences.delivery_days:
-                        task = generate_user_digest.delay(user.id)
+                    if weekday in preferences.get("delivery_days", [1, 2, 3, 4, 5]):
+                        task = generate_user_digest.delay(user["id"])
                         tasks_queued.append({
-                            "user_id": user.id,
-                            "user_email": user.email,
-                            "user_timezone": preferences.timezone,
+                            "user_id": user["id"],
+                            "user_email": user.get("email"),
+                            "user_timezone": preferences.get("timezone"),
                             "user_local_time": current_user_time.strftime("%H:%M"),
                             "task_id": task.id
                         })
                         logger.info(
-                            f"Queued digest for {user.email}",
-                            user_timezone=preferences.timezone,
+                            f"Queued digest for {user.get('email')}",
+                            user_timezone=preferences.get("timezone"),
                             user_local_time=current_user_time.strftime("%H:%M"),
                             weekday=weekday
                         )
             except Exception as user_error:
                 logger.error(
-                    f"Error processing user {user.email}: {user_error}",
+                    f"Error processing user {user.get('email')}: {user_error}",
                     exc_info=True
                 )
                 continue

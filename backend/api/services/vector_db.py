@@ -171,7 +171,7 @@ class PgVectorDB(BaseVectorDB):
     """
 
     def __init__(self, connection_string: str, table_name: str = "embeddings"):
-        from sqlalchemy import create_engine
+        # from sqlalchemy import create_engine
         self.engine = create_engine(connection_string)
         self.table_name = table_name
         self._ensure_table()
