@@ -37,6 +37,8 @@ playwright==1.40.0
 # Email
 python-dotenv==1.0.0
 jinja2==3.1.2
+authlib==1.3.0
+itsdangerous==2.1.2  # Required for OAuth state management
 
 # Security
 python-jose[cryptography]==3.3.0
