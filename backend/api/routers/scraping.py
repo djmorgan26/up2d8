@@ -107,6 +107,7 @@ async def list_sources(
     sources_cursor = db[CosmosCollections.SOURCES].find(query_filter).sort([("priority", -1), ("name", 1)])
 
     # Convert MongoDB documents to response format
+    from datetime import datetime
     sources = []
     for doc in sources_cursor:
         # Convert _id to string if needed, use 'id' field if it exists
@@ -115,6 +116,11 @@ async def list_sources(
             source_dict["id"] = str(source_dict["_id"])
         if "_id" in source_dict:
             del source_dict["_id"]
+
+        # Convert datetime fields to ISO format strings
+        for dt_field in ["last_checked_at", "next_check_at"]:
+            if dt_field in source_dict and isinstance(source_dict[dt_field], datetime):
+                source_dict[dt_field] = source_dict[dt_field].isoformat()
 
         # Ensure all required fields have defaults
         source_dict.setdefault("success_count", 0)
@@ -456,6 +462,7 @@ async def list_articles(
     )
 
     # Convert MongoDB documents to response format
+    from datetime import datetime
     articles = []
     for doc in articles_cursor:
         # Convert _id to string if needed, use 'id' field if it exists
@@ -464,6 +471,11 @@ async def list_articles(
             article_dict["id"] = str(article_dict["_id"])
         if "_id" in article_dict:
             del article_dict["_id"]
+
+        # Convert datetime fields to ISO format strings
+        for dt_field in ["published_at", "fetched_at"]:
+            if dt_field in article_dict and isinstance(article_dict[dt_field], datetime):
+                article_dict[dt_field] = article_dict[dt_field].isoformat()
 
         # Ensure all required fields have defaults
         article_dict.setdefault("companies", [])
