@@ -339,9 +339,11 @@ async def scrape_source_direct(
                 article_data = article.to_dict()
                 article_doc = ArticleDocument.create(
                     source_id=source_id,
-                    source_url=article_data["source_url"],
-                    title=article_data["title"],
-                    **article_data
+                    source_url=article_data.get("source_url"),
+                    title=article_data.get("title"),
+                    content=article_data.get("content"),
+                    author=article_data.get("author"),
+                    published_at=article_data.get("published_at")
                 )
                 db[CosmosCollections.ARTICLES].insert_one(article_doc)
                 stored_count += 1
