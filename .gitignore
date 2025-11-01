@@ -22,6 +22,7 @@ local.settings.json
 
 # AI CLI configurations (may contain context)
 .gemini/
+.claude/
 
 # API keys and tokens
 *.key
