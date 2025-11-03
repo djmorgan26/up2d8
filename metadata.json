@@ -1,0 +1,5 @@
+{
+  "name": "UP2D8 Personal News Digest & Chat",
+  "description": "A web-based chat application that can create a personalized news digest for any company or industry. Powered by the Gemini API with Google Search grounding for up-to-date, accurate answers.",
+  "requestFramePermissions": []
+}
