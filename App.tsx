@@ -5,12 +5,14 @@ import Nav from './components/Nav';
 import ChatPage from './pages/ChatPage';
 import BrowsePage from './pages/BrowsePage';
 import SubscribePage from './pages/SubscribePage';
+import { LandingPage } from './pages/LandingPage';
 
 // Define the available pages
 export type Page = 'chat' | 'browse' | 'subscribe';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('chat');
+  const [appLaunched, setAppLaunched] = useState(false);
 
   const renderPage = () => {
     switch (activePage) {
@@ -23,6 +25,10 @@ const App: React.FC = () => {
         return <ChatPage />;
     }
   };
+
+  if (!appLaunched) {
+    return <LandingPage onLaunch={() => setAppLaunched(true)} />;
+  }
 
   return (
     <div className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 font-sans transition-colors duration-300">
