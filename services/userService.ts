@@ -3,7 +3,7 @@ export async function subscribeUser(email: string, topics: string[]): Promise<{ 
   try {
     // This function calls our own backend API, which would handle storing the subscription.
     // This endpoint would be implemented in your FastAPI backend.
-    const response = await fetch('/api/subscribe', {
+    const response = await fetch('/api/users', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

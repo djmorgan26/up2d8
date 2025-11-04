@@ -7,7 +7,7 @@ import { ChatInput } from './ChatInput';
 
 export const ChatWindow: React.FC = () => {
   const [messages, setMessages] = useState<MessageType[]>([
-    { id: 'initial-1', role: Role.MODEL, text: "Hello! I'm your UP2D8 news assistant. Tell me what industry, company, or topic you're interested in, and I'll find the latest information for you." }
+    { id: 'initial-1', role: Role.MODEL, content: "Hello! I'm your UP2D8 news assistant. Tell me what industry, company, or topic you're interested in, and I'll find the latest information for you." }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -24,7 +24,8 @@ export const ChatWindow: React.FC = () => {
     const userMessage: MessageType = {
       id: `user-${Date.now()}`,
       role: Role.USER,
-      text: prompt,
+      content: prompt,
+      timestamp: new Date().toISOString(),
     };
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
@@ -34,7 +35,8 @@ export const ChatWindow: React.FC = () => {
       const modelMessage: MessageType = {
         id: `model-${Date.now()}`,
         role: Role.MODEL,
-        text,
+        content: text,
+        timestamp: new Date().toISOString(),
         sources,
       };
       setMessages(prev => [...prev, modelMessage]);
@@ -42,7 +44,7 @@ export const ChatWindow: React.FC = () => {
       const errorMessage: MessageType = {
         id: `error-${Date.now()}`,
         role: Role.ERROR,
-        text: error instanceof Error ? error.message : "An unexpected error occurred.",
+        content: error instanceof Error ? error.message : "An unexpected error occurred.",
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -56,7 +58,7 @@ export const ChatWindow: React.FC = () => {
         {messages.map((msg) => (
           <Message key={msg.id} message={msg} />
         ))}
-        {isLoading && <Message key="loading" message={{ id: 'loading', role: Role.MODEL, text: '...' }} />}
+        {isLoading && <Message key="loading" message={{ id: 'loading', role: Role.MODEL, content: '...' }} />}
       </div>
       <div className="p-4 md:p-6 border-t border-gray-200 dark:border-gray-700">
         <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />

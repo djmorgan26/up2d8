@@ -21,29 +21,31 @@ const ChatPage: React.FC = () => {
   const handleSendMessage = useCallback(async (prompt: string) => {
     if (!prompt.trim() || isLoading) return;
 
-    const userMessage: MessageType = {
-      id: `user-${Date.now()}`,
+const userMessage: MessageType = {
+      id: Date.now().toString(),
       role: Role.USER,
-      text: prompt,
+      content: prompt,
+      timestamp: new Date().toISOString(),
     };
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
     try {
       const { text, sources } = await askGeminiWithSearch(prompt);
-      const modelMessage: MessageType = {
-        id: `model-${Date.now()}`,
+const modelMessage: MessageType = {
+        id: Date.now().toString(),
         role: Role.MODEL,
-        text,
-        sources,
+        content: geminiResponse.text, // The backend still returns 'text'
+        timestamp: new Date().toISOString(),
+        sources: geminiResponse.sources,
       };
       setMessages(prev => [...prev, modelMessage]);
     } catch (error) {
-      const errorMessage: MessageType = {
-        id: `error-${Date.now()}`,
-        role: Role.ERROR,
-        text: error instanceof Error ? error.message : "An unexpected error occurred.",
-      };
+const errorMessage: MessageType = {
+      id: Date.now().toString(),
+      role: Role.ERROR,
+      content: error instanceof Error ? error.message : "An unexpected error occurred.",
+    };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
@@ -56,7 +58,7 @@ const ChatPage: React.FC = () => {
         {messages.map((msg) => (
           <Message key={msg.id} message={msg} />
         ))}
-        {isLoading && <Message key="loading" message={{ id: 'loading', role: Role.MODEL, text: '...' }} />}
+        {isLoading && <Message key="loading" message={{ id: 'loading', role: Role.MODEL, content: '...' }} />}
       </div>
       <div className="p-4 md:p-6 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
         <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />

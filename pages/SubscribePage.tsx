@@ -30,7 +30,7 @@ const SubscribePage: React.FC = () => {
     }
   };
 
-  const handleCustomTopicKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+const handleCustomTopicKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       handleAddCustomTopic();

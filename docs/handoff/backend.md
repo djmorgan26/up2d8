@@ -1,281 +1,208 @@
-# UP2D8 Frontend API Passoff Document
+# Backend API Documentation (Updated)
 
-This document provides a comprehensive overview of the UP2D8 Backend API service, designed for seamless integration by frontend developers.
+This document provides details on the main backend API endpoints for the Up2D8 application, reflecting the latest changes.
 
-## 1. Project Overview
+## Endpoints
 
-The UP2D8 Backend API is a FastAPI service that acts as the central hub for managing user data, handling real-time chat interactions via the Google Gemini API, and providing a stable interface for client applications.
+### 1. Chat with Gemini
 
-## 2. Base URL
+-   **Endpoint:** `POST /api/chat`
+-   **Description:** This endpoint receives a user's prompt and communicates with the Gemini API to get a response. It now explicitly includes a `sources` array.
+-   **Request Body:**
+    ```json
+    {
+      "prompt": "string"
+    }
+    ```
+-   **Success Response:**
+    ```json
+    {
+      "text": "string",
+      "sources": [
+        {
+          "web": {
+            "uri": "string",
+            "title": "string"
+          }
+        }
+      ]
+    }
+    ```
+    The `sources` array is optional and may be empty if no sources are available.
 
-The base URL for all API endpoints will be provided by the deployment environment (e.g., `https://api.up2d8.com`). For local development, it typically runs on `http://127.0.0.1:8000`.
+-   **Error Response:**
+    ```json
+    {
+      "message": "string"
+    }
+    ```
 
-## 3. Authentication
+### 2. User Management
 
-**Note:** The current API endpoints do not have explicit authentication mechanisms implemented at the endpoint level. It is assumed that authentication and authorization will be handled by an API Gateway or similar service in front of this backend, or that the consumers of this API are trusted internal services. Further clarification on the authentication strategy will be provided.
-
-## 4. API Endpoints
-
-### 4.1. Root
-
-*   **GET /**
-    *   **Description:** Basic health check or welcome message.
-    *   **Response:**
+-   **Endpoint:** `POST /api/users`
+    -   **Description:** Creates a new user or updates an existing user's topics.
+    -   **Request Body:**
         ```json
         {
-            "Hello": "World"
+          "email": "user@example.com",
+          "topics": ["Tech", "AI"]
+        }
+        ```
+    -   **Success Response:**
+        ```json
+        {
+          "message": "Subscription confirmed." | "User already exists, topics updated.",
+          "user_id": "string"
         }
         ```
 
-### 4.2. User Management
-
-*   **POST /api/users**
-    *   **Description:** Creates a new user or updates an existing user's topics if the email already exists. Primarily used for newsletter subscriptions or initial user setup.
-    *   **Request Body (application/json):** `UserCreate`
+-   **Endpoint:** `GET /api/users/{user_id}`
+    -   **Description:** Retrieves a user's profile by their ID.
+    -   **Success Response:**
         ```json
         {
+            "user_id": "string",
             "email": "user@example.com",
-            "topics": ["technology", "news"]
+            "topics": ["Tech", "AI", "Science"],
+            "created_at": "2023-10-27T10:00:00Z",
+            "preferences": {} // Optional
         }
         ```
-    *   **Response (200 OK):**
-        ```json
-        {
-            "message": "Subscription confirmed." | "User already exists, topics updated.",
-            "user_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
-        }
-        ```
+    -   **Error Response:** `404 Not Found` if user does not exist.
 
-*   **PUT /api/users/{user_id}**
-    *   **Description:** Updates a user's preferences or topics.
-    *   **Path Parameters:**
-        *   `user_id` (string): The unique identifier of the user.
-    *   **Request Body (application/json):** `UserUpdate`
+-   **Endpoint:** `PUT /api/users/{user_id}`
+    -   **Description:** Updates a user's preferences or topics. The `updated_at` field is automatically managed.
+    -   **Request Body:**
         ```json
         {
-            "topics": ["sports", "finance"],
-            "preferences": {
-                "newsletter_frequency": "weekly",
-                "theme": "dark"
-            }
+          "topics": ["Tech", "AI"], // Optional
+          "preferences": { "newsletter_style": "concise" } // Optional
         }
         ```
-    *   **Response (200 OK):**
+    -   **Success Response:**
         ```json
         {
-            "message": "Preferences updated."
+          "message": "Preferences updated."
         }
         ```
-    *   **Error Responses:**
-        *   `400 Bad Request`: If no fields to update are provided.
-        *   `404 Not Found`: If the `user_id` does not exist.
+    -   **Error Response:** `404 Not Found` if user does not exist, `400 Bad Request` if no fields to update are provided.
 
-### 4.3. Chat Interaction
+-   **Endpoint:** `DELETE /api/users/{user_id}`
+    -   **Description:** Deletes a user's profile by their ID.
+    -   **Success Response:**
+        ```json
+        {
+          "message": "User deleted."
+        }
+        ```
+    -   **Error Response:** `404 Not Found` if user does not exist.
 
-*   **POST /api/chat**
-    *   **Description:** Stateless proxy to the Google Gemini API for chat interactions.
-    *   **Request Body (application/json):** `ChatRequest`
-        ```json
-        {
-            "prompt": "Tell me a joke."
-        }
-        ```
-    *   **Response (200 OK):**
-        ```json
-        {
-            "text": "Why don't scientists trust atoms? Because they make up everything!"
-        }
-        ```
-    *   **Error Responses:**
-        *   `500 Internal Server Error`: If there's an issue with the Gemini API.
+### 3. Article Management (Read-Only)
 
-*   **POST /api/sessions**
-    *   **Description:** Creates a new chat session for a user.
-    *   **Request Body (application/json):** `SessionCreate`
-        ```json
-        {
-            "user_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-            "title": "My first chat session"
-        }
-        ```
-    *   **Response (200 OK):**
-        ```json
-        {
-            "session_id": "f1e2d3c4-b5a6-9876-5432-10fedcba9876"
-        }
-        ```
-
-*   **GET /api/users/{user_id}/sessions**
-    *   **Description:** Retrieves all chat sessions for a given user.
-    *   **Path Parameters:**
-        *   `user_id` (string): The unique identifier of the user.
-    *   **Response (200 OK):**
+-   **Endpoint:** `GET /api/articles`
+    -   **Description:** Retrieves a list of all articles.
+    -   **Success Response:**
         ```json
         [
-            {
-                "session_id": "f1e2d3c4-b5a6-9876-5432-10fedcba9876",
-                "user_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-                "title": "My first chat session",
-                "created_at": "2023-10-27T10:00:00.000Z",
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": "Hello Gemini!",
-                        "timestamp": "2023-10-27T10:01:00.000Z"
-                    }
-                ]
-            }
+          {
+            "id": "string",
+            "title": "string",
+            "link": "string",
+            "summary": "string",
+            "published": "2023-10-27T09:00:00Z",
+            "processed": false,
+            "tags": ["string"],
+            "created_at": "2023-10-27T09:30:00Z"
+          }
         ]
         ```
 
-*   **POST /api/sessions/{session_id}/messages**
-    *   **Description:** Sends a new message within an existing chat session.
-    *   **Path Parameters:**
-        *   `session_id` (string): The unique identifier of the chat session.
-    *   **Request Body (application/json):** `MessageContent`
+-   **Endpoint:** `GET /api/articles/{article_id}`
+    -   **Description:** Retrieves a single article by its ID.
+    -   **Success Response:**
         ```json
         {
-            "content": "What is the capital of France?"
+          "id": "string",
+          "title": "string",
+          "link": "string",
+          "summary": "string",
+          "published": "2023-10-27T09:00:00Z",
+          "processed": false,
+          "tags": ["string"],
+          "created_at": "2023-10-27T09:30:00Z"
         }
         ```
-    *   **Response (200 OK):**
-        ```json
-        {
-            "message": "Message sent."
-        }
-        ```
-    *   **Error Responses:**
-        *   `404 Not Found`: If the `session_id` does not exist.
+    -   **Error Response:** `404 Not Found` if article does not exist.
 
-*   **GET /api/sessions/{session_id}/messages**
-    *   **Description:** Retrieves all messages for a specific chat session.
-    *   **Path Parameters:**
-        *   `session_id` (string): The unique identifier of the chat session.
-    *   **Response (200 OK):**
+### 4. RSS Feed Management (Admin Only)
+
+-   **Endpoint:** `POST /api/rss_feeds`
+    -   **Description:** Creates a new RSS feed entry.
+    -   **Request Body:**
+        ```json
+        {
+          "url": "https://example.com/rss_feed",
+          "category": "Tech" // Optional
+        }
+        ```
+    -   **Success Response:**
+        ```json
+        {
+          "message": "RSS Feed created successfully.",
+          "id": "string"
+        }
+        ```
+
+-   **Endpoint:** `GET /api/rss_feeds`
+    -   **Description:** Retrieves a list of all RSS feeds.
+    -   **Success Response:**
         ```json
         [
-            {
-                "role": "user",
-                "content": "Hello Gemini!",
-                "timestamp": "2023-10-27T10:01:00.000Z"
-            },
-            {
-                "role": "model",
-                "content": "Hello! How can I help you today?",
-                "timestamp": "2023-10-27T10:01:05.000Z"
-            }
+          {
+            "id": "string",
+            "url": "https://example.com/rss_feed",
+            "category": "string", // Optional
+            "created_at": "2023-10-27T08:00:00Z"
+          }
         ]
         ```
-    *   **Error Responses:**
-        *   `404 Not Found`: If the `session_id` does not exist.
 
-### 4.4. Feedback
-
-*   **POST /api/feedback**
-    *   **Description:** Records user feedback on chat messages or other interactions.
-    *   **Request Body (application/json):** `FeedbackCreate`
+-   **Endpoint:** `GET /api/rss_feeds/{feed_id}`
+    -   **Description:** Retrieves a single RSS feed by its ID.
+    -   **Success Response:**
         ```json
         {
-            "message_id": "msg_12345",
-            "user_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-            "rating": "good"
+          "id": "string",
+          "url": "https://example.com/rss_feed",
+          "category": "string", // Optional
+          "created_at": "2023-10-27T08:00:00Z"
         }
         ```
-    *   **Response (201 Created):**
+    -   **Error Response:** `404 Not Found` if RSS feed does not exist.
+
+-   **Endpoint:** `PUT /api/rss_feeds/{feed_id}`
+    -   **Description:** Updates an existing RSS feed's URL or category. The `updated_at` field is automatically managed.
+    -   **Request Body:**
         ```json
         {
-            "message": "Feedback received."
+          "url": "https://updated.com/rss_feed", // Optional
+          "category": "Updated Category" // Optional
         }
         ```
-
-### 4.5. Analytics
-
-*   **POST /api/analytics**
-    *   **Description:** Logs various user interaction events for analytics purposes.
-    *   **Request Body (application/json):** `AnalyticsEvent`
+    -   **Success Response:**
         ```json
         {
-            "user_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-            "event_type": "page_view",
-            "details": {
-                "page": "/dashboard",
-                "duration_ms": 5000
-            }
+          "message": "RSS Feed updated successfully."
         }
         ```
-    *   **Response (202 Accepted):**
+    -   **Error Response:** `404 Not Found` if RSS feed does not exist, `400 Bad Request` if no fields to update are provided.
+
+-   **Endpoint:** `DELETE /api/rss_feeds/{feed_id}`
+    -   **Description:** Deletes an RSS feed by its ID.
+    -   **Success Response:**
         ```json
         {
-            "message": "Event logged."
+          "message": "RSS Feed deleted successfully."
         }
         ```
-
-## 5. Data Models (Pydantic)
-
-### `UserCreate`
-```python
-class UserCreate(BaseModel):
-    email: EmailStr
-    topics: list[str]
-```
-
-### `UserUpdate`
-```python
-class UserUpdate(BaseModel):
-    topics: list[str] | None = None
-    preferences: dict | None = None
-```
-
-### `ChatRequest`
-```python
-class ChatRequest(BaseModel):
-    prompt: str
-```
-
-### `SessionCreate`
-```python
-class SessionCreate(BaseModel):
-    user_id: str
-    title: str
-```
-
-### `MessageContent`
-```python
-class MessageContent(BaseModel):
-    content: str
-```
-
-### `FeedbackCreate`
-```python
-class FeedbackCreate(BaseModel):
-    message_id: str
-    user_id: str
-    rating: str # e.g., "good", "bad", "neutral"
-```
-
-### `AnalyticsEvent`
-```python
-class AnalyticsEvent(BaseModel):
-    user_id: str
-    event_type: str
-    details: dict
-```
-
-## 6. Error Handling
-
-The API uses standard HTTP status codes for error reporting. Common error responses include:
-
-*   `400 Bad Request`: Invalid request payload or missing required fields.
-*   `404 Not Found`: Resource not found (e.g., invalid `user_id` or `session_id`).
-*   `500 Internal Server Error`: Unexpected server-side errors, often with a `detail` message.
-
-## 7. Specific Notes for Frontend Developers
-
-*   **CORS:** Ensure your frontend application is configured to handle Cross-Origin Resource Sharing (CORS) with the backend.
-*   **Asynchronous Operations:** Most API calls are asynchronous. Handle promises/async-await appropriately.
-*   **User IDs:** The `user_id` is a UUID string. Ensure consistent handling across frontend and backend.
-*   **Timestamps:** Timestamps are returned in UTC format (ISO 8601).
-
----
-**Document Version:** 1.0
-**Date:** November 4, 2025
+    -   **Error Response:** `404 Not Found` if RSS feed does not exist.

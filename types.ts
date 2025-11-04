@@ -15,7 +15,8 @@ export interface GroundingChunk {
 export interface Message {
   id: string;
   role: Role;
-  text: string;
+  content: string;
+  timestamp?: string;
   sources?: GroundingChunk[];
 }
 

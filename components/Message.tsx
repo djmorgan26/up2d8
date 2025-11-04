@@ -38,7 +38,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
       : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-none'
   }`;
   
-  const formattedText = message.text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>').replace(/\n/g, '<br />');
+  const formattedText = message.content.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>').replace(/\n/g, '<br />');
 
   return (
     <div className={wrapperClasses}>
@@ -47,7 +47,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
       </div>
       <div className="flex flex-col">
         <div className={bubbleClasses}>
-            {message.text === '...' ? (
+            {message.content === '...' ? (
                 <div className="flex items-center justify-center space-x-1.5">
                     <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
 	                <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
