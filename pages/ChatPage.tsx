@@ -7,7 +7,7 @@ import { ChatInput } from '../components/ChatInput';
 
 const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<MessageType[]>([
-    { id: 'initial-1', role: Role.MODEL, text: "Hello! I'm your UP2D8 news assistant. Tell me what industry, company, or topic you're interested in, and I'll find the latest information for you." }
+    { id: 'initial-1', role: Role.MODEL, content: "Hello! I'm your UP2D8 news assistant. Tell me what industry, company, or topic you're interested in, and I'll find the latest information for you." }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -35,9 +35,9 @@ const userMessage: MessageType = {
 const modelMessage: MessageType = {
         id: Date.now().toString(),
         role: Role.MODEL,
-        content: geminiResponse.text, // The backend still returns 'text'
+        content: text, 
         timestamp: new Date().toISOString(),
-        sources: geminiResponse.sources,
+        sources: sources,
       };
       setMessages(prev => [...prev, modelMessage]);
     } catch (error) {
