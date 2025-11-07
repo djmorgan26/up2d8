@@ -1,7 +1,9 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TopicCard } from '../components/TopicCard';
-import { BrowseCategory } from '../types';
+import TopicActionModal from '../components/TopicActionModal';
+import { BrowseCategory, BrowseCategoryTopic } from '../types';
 
 const mockCategories: BrowseCategory[] = [
   {
@@ -37,6 +39,30 @@ const mockCategories: BrowseCategory[] = [
 ];
 
 const BrowsePage: React.FC = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState<BrowseCategoryTopic | null>(null);
+  const navigate = useNavigate();
+
+  const handleTopicClick = (topic: BrowseCategoryTopic) => {
+    setSelectedTopic(topic);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedTopic(null);
+  };
+
+  const handleChat = (topicName: string) => {
+    navigate(`/chat?topic=${encodeURIComponent(topicName)}`);
+    handleCloseModal();
+  };
+
+  const handleSubscribe = (topicName: string) => {
+    navigate(`/subscribe?topic=${encodeURIComponent(topicName)}`);
+    handleCloseModal();
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-8 h-full">
       <header>
@@ -49,14 +75,18 @@ const BrowsePage: React.FC = () => {
             <h3 className="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-200">{category.title}</h3>
             <div className="flex gap-4 overflow-x-auto pb-4 -mb-4 snap-x snap-mandatory">
               {category.topics.map(topic => (
-                <div key={topic.name} className="snap-start">
-                  <TopicCard topic={topic} />
-                </div>
+                <TopicCard key={topic.name} topic={topic} onClick={handleTopicClick} />
               ))}
             </div>
           </section>
         ))}
       </div>
+      <TopicActionModal
+        topic={selectedTopic}
+        onClose={handleCloseModal}
+        onChat={handleChat}
+        onSubscribe={handleSubscribe}
+      />
     </div>
   );
 };

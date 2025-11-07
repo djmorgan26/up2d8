@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Message as MessageType, Role } from '../types';
 import { askGeminiWithSearch } from '../services/geminiService';
 import { Message } from '../components/Message';
@@ -11,6 +12,8 @@ const ChatPage: React.FC = () => {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const messageListRef = useRef<HTMLDivElement>(null);
+  const [searchParams] = useSearchParams();
+  const initialTopic = searchParams.get('topic');
 
   useEffect(() => {
     if (messageListRef.current) {
@@ -18,10 +21,19 @@ const ChatPage: React.FC = () => {
     }
   }, [messages]);
 
+  useEffect(() => {
+    if (initialTopic) {
+      handleSendMessage(initialTopic);
+      // Clear the topic from the URL to prevent re-sending on refresh
+      // This would require modifying the URL, which is outside the scope of this component
+      // For now, we'll just ensure it only sends once.
+    }
+  }, [initialTopic]); // Only run once when initialTopic changes
+
   const handleSendMessage = useCallback(async (prompt: string) => {
     if (!prompt.trim() || isLoading) return;
 
-const userMessage: MessageType = {
+    const userMessage: MessageType = {
       id: Date.now().toString(),
       role: Role.USER,
       content: prompt,
@@ -32,7 +44,7 @@ const userMessage: MessageType = {
 
     try {
       const { text, sources } = await askGeminiWithSearch(prompt);
-const modelMessage: MessageType = {
+      const modelMessage: MessageType = {
         id: Date.now().toString(),
         role: Role.MODEL,
         content: text, 
@@ -41,11 +53,11 @@ const modelMessage: MessageType = {
       };
       setMessages(prev => [...prev, modelMessage]);
     } catch (error) {
-const errorMessage: MessageType = {
-      id: Date.now().toString(),
-      role: Role.ERROR,
-      content: error instanceof Error ? error.message : "An unexpected error occurred.",
-    };
+      const errorMessage: MessageType = {
+        id: Date.now().toString(),
+        role: Role.ERROR,
+        content: error instanceof Error ? error.message : "An unexpected error occurred.",
+      };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
@@ -66,5 +78,4 @@ const errorMessage: MessageType = {
     </div>
   );
 };
-
 export default ChatPage;

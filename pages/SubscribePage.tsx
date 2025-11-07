@@ -1,5 +1,6 @@
 
-import React, { useState, FormEvent } from 'react';
+import React, { useState, FormEvent, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { subscribeUser } from '../services/userService';
 
 const popularTopics = ['Artificial Intelligence', 'Cybersecurity', 'Health Science', 'Fintech', 'Renewable Energy', 'Business'];
@@ -9,6 +10,15 @@ const SubscribePage: React.FC = () => {
   const [selectedTopics, setSelectedTopics] = useState<Set<string>>(new Set());
   const [customTopic, setCustomTopic] = useState('');
   const [status, setStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error', message: string }>({ type: 'idle', message: '' });
+
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const topicFromUrl = searchParams.get('topic');
+    if (topicFromUrl) {
+      setSelectedTopics(prev => new Set(prev).add(topicFromUrl));
+    }
+  }, [searchParams]);
 
   const toggleTopic = (topic: string) => {
     setSelectedTopics(prev => {

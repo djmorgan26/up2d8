@@ -1,36 +1,41 @@
 
 import React from 'react';
-import { Page } from '../App';
+import { NavLink } from 'react-router-dom';
+
+// Placeholder icons - In a real app, these would be imported from an icon library
+const ChatIcon = () => <span className="text-xl">💬</span>;
+const BrowseIcon = () => <span className="text-xl">📚</span>;
+const SubscribeIcon = () => <span className="text-xl">✨</span>;
 
 interface NavProps {
-  activePage: Page;
-  setActivePage: (page: Page) => void;
+  showNav: boolean;
 }
 
-const Nav: React.FC<NavProps> = ({ activePage, setActivePage }) => {
-  const navItems: { id: Page, label: string }[] = [
-    { id: 'chat', label: 'Chat' },
-    { id: 'browse', label: 'Browse' },
-    { id: 'subscribe', label: 'Subscribe' },
+const Nav: React.FC<NavProps> = ({ showNav }) => {
+  const navItems = [
+    { path: '/chat', label: 'Chat', icon: ChatIcon },
+    { path: '/browse', label: 'Browse', icon: BrowseIcon },
+    { path: '/subscribe', label: 'Subscribe', icon: SubscribeIcon },
   ];
 
   return (
-    <nav className="border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
-      <ul className="flex items-center justify-center -mb-px">
+    // Fixed bottom navigation bar
+    <nav className={`fixed bottom-0 left-0 right-0 bg-surface z-50 transform transition-transform duration-300 ease-in-out ${showNav ? 'translate-y-0' : 'translate-y-full'}`}>
+      <ul className="flex justify-evenly h-16">
         {navItems.map(item => (
-          <li key={item.id} className="flex-1 text-center">
-            <button
-              onClick={() => setActivePage(item.id)}
-              className={`w-full p-4 text-sm font-medium border-b-2 transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-inset`}
-              style={{
-                borderColor: activePage === item.id ? 'var(--primary)' : 'transparent',
-                color: activePage === item.id ? 'var(--primary)' : 'var(--text-secondary)',
-                ringColor: 'var(--primary)'
-              }}
-               aria-current={activePage === item.id ? 'page' : undefined}
+          <li key={item.path} className="flex-1">
+            <NavLink
+              to={item.path}
+              className="flex flex-col items-center justify-center h-full text-xs font-medium transition-colors duration-200"
+              style={({ isActive }) => ({
+                color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+              })}
             >
-              {item.label}
-            </button>
+              {/* Icon */}
+              <item.icon />
+              {/* Label */}
+              <span className="mt-1" style={{ fontWeight: '500' }}>{item.label}</span>
+            </NavLink>
           </li>
         ))}
       </ul>
