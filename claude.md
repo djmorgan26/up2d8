@@ -1,8 +1,8 @@
-# up2d8 - Personal News Digest & Chat
+# up2d8 - React Native Mobile App
 
-**Project Type**: React Web Application
-**Purpose**: Personal news digest and chat interface using Google's Gemini AI
-**Tech Stack**: React 19, TypeScript, Vite, Google Generative AI
+**Project Type**: React Native Mobile Application
+**Purpose**: Personal news digest and information management mobile app
+**Tech Stack**: React Native 0.82.1, TypeScript, React Navigation 7.x
 **Status**: Early Development
 **Last Updated**: 2025-11-08
 
@@ -112,21 +112,23 @@ This knowledge base works with **any AI assistant**:
 
 ### What This Is
 
-A React-based web application that provides personalized news digests and chat functionality powered by Google's Gemini AI. The application helps users stay up-to-date with news and information through an intelligent chat interface.
+A React Native mobile application for personal news digests and information management. The app provides a native mobile experience with custom theming and smooth navigation.
 
 ### Core Features (In Development)
 
-- Personal news digest aggregation
-- Chat interface using Google's Gemini AI
-- React Router for navigation
-- Modern React 19 with TypeScript
+- React Native mobile app architecture
+- Bottom tab navigation
+- Custom theming system with dark mode
+- Native animations and transitions
+- Cross-platform (iOS & Android)
 
 ### Tech Stack
 
-- **Frontend**: React 19, TypeScript
-- **Build Tool**: Vite
-- **AI Integration**: Google Generative AI (@google/genai)
-- **Routing**: React Router DOM v7
+- **Mobile Framework**: React Native 0.82.1
+- **Language**: TypeScript
+- **Navigation**: React Navigation 7.x (Bottom Tabs, Native Stack)
+- **UI Libraries**: React Native Linear Gradient, React Native Blur, Vector Icons
+- **Platforms**: iOS & Android
 
 ### Current Status
 
