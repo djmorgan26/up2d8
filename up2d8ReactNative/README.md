@@ -1,6 +1,40 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# up2d8 - Personal News Digest Mobile App
 
-# Getting Started
+<div align="center">
+
+**A beautiful React Native mobile app for personalized news digests**
+
+[![React Native](https://img.shields.io/badge/React%20Native-0.82.1-blue.svg)](https://reactnative.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
+[![iOS](https://img.shields.io/badge/iOS-Supported-success.svg)](https://www.apple.com/ios/)
+[![Android](https://img.shields.io/badge/Android-Supported-success.svg)](https://www.android.com/)
+
+</div>
+
+---
+
+## ✨ Features
+
+### Current Features
+- 🎨 **Glassmorphism Design** - Modern, polished UI with blur effects
+- 🌓 **Dark Mode** - Fully implemented light and dark themes
+- 📱 **Bottom Tab Navigation** - Chat, Browse, Subscribe, Settings
+- ⚡ **Smooth Animations** - Spring animations throughout
+- 📳 **Haptic Feedback** - Tactile responses on interactions
+- 🎯 **TypeScript** - Type-safe codebase
+- 🔄 **Skeleton Loaders** - Smooth loading states
+
+### Coming Soon
+- 💬 Real-time chat functionality
+- 📰 Live news content browsing
+- 💳 Subscription management
+- 🔔 Push notifications
+- 🔖 Save and bookmark articles
+- 📊 Reading analytics
+
+---
+
+## 🚀 Getting Started
 
 > **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
 
@@ -95,3 +129,31 @@ To learn more about React Native, take a look at the following resources:
 - [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
 - [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
 - [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+
+---
+
+## 📖 Project Documentation
+
+- **[Polish Summary](./POLISH_SUMMARY.md)** - Recent enhancements and visual polish details
+- **[App Icon Guide](./APP_ICON_GUIDE.md)** - Complete guide for creating and adding app icons
+- **[AI Knowledge Base](../.ai/INDEX.md)** - Project knowledge management system
+
+---
+
+## 🎨 Design System
+
+The app uses a custom glassmorphism design system with:
+- **Primary Colors**: Blue (#4169E1) to Purple (#A855F7) gradient
+- **Typography**: SF Pro font family with 8pt grid spacing
+- **Components**: GlassCard, GlassButton, GlassTabBar with blur effects
+- **Dark Mode**: Fully implemented with smooth transitions
+
+See `src/theme/tokens.ts` for the complete design token system.
+
+---
+
+<div align="center">
+
+**Built with ❤️ using React Native**
+
+</div>

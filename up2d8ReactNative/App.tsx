@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import ChatPage from './src/screens/ChatPage';
 import BrowsePage from './src/screens/BrowsePage';
 import SubscribePage from './src/screens/SubscribePage';
+import SettingsPage from './src/screens/SettingsPage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { GlassTabBar } from './src/components/GlassTabBar';
@@ -46,6 +47,15 @@ const AppContent = () => {
           options={{
             tabBarIcon: ({ color, size }) => (
               <Icon name="sparkles-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={SettingsPage}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="settings-outline" size={size} color={color} />
             ),
           }}
         />

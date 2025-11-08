@@ -20,6 +20,7 @@ import {
   spacing,
   typography,
 } from '../theme/tokens';
+import { haptics } from '../utils/haptics';
 
 interface GlassButtonProps {
   onPress: () => void;
@@ -47,6 +48,7 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
+    haptics.medium();
     Animated.spring(scaleAnim, {
       toValue: 0.97,
       useNativeDriver: true,
