@@ -6,7 +6,8 @@ import BrowsePage from './src/screens/BrowsePage';
 import SubscribePage from './src/screens/SubscribePage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
-import { Text } from 'react-native';
+import { GlassTabBar } from './src/components/GlassTabBar';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 const Tab = createBottomTabNavigator();
 
@@ -16,19 +17,9 @@ const AppContent = () => {
   return (
     <NavigationContainer>
       <Tab.Navigator
+        tabBar={(props) => <GlassTabBar {...props} />}
         screenOptions={{
-          tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: theme.colors.textSecondary,
-          tabBarStyle: {
-            backgroundColor: theme.colors.surface,
-            borderTopColor: theme.colors.textSecondary,
-          },
-          headerStyle: {
-            backgroundColor: theme.colors.surface,
-          },
-          headerTitleStyle: {
-            color: theme.colors.textPrimary,
-          },
+          headerShown: false,
         }}
       >
         <Tab.Screen
@@ -36,7 +27,7 @@ const AppContent = () => {
           component={ChatPage}
           options={{
             tabBarIcon: ({ color, size }) => (
-              <Text style={{ color, fontSize: size }}>💬</Text>
+              <Icon name="chatbubbles-outline" size={size} color={color} />
             ),
           }}
         />
@@ -45,7 +36,7 @@ const AppContent = () => {
           component={BrowsePage}
           options={{
             tabBarIcon: ({ color, size }) => (
-              <Text style={{ color, fontSize: size }}>📚</Text>
+              <Icon name="compass-outline" size={size} color={color} />
             ),
           }}
         />
@@ -54,7 +45,7 @@ const AppContent = () => {
           component={SubscribePage}
           options={{
             tabBarIcon: ({ color, size }) => (
-              <Text style={{ color, fontSize: size }}>✨</Text>
+              <Icon name="sparkles-outline" size={size} color={color} />
             ),
           }}
         />
@@ -72,8 +63,5 @@ const App = () => {
     </SafeAreaProvider>
   );
 };
-
-export default App;
-
 
 export default App;
