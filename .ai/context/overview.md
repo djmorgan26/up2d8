@@ -1,6 +1,6 @@
 # Project Overview
 
-**Project Name**: up2d8 - Personal News Digest & Chat
+**Project Name**: up2d8 - React Native Mobile App
 **Created**: 2025-11-08
 **Status**: Early Development
 **Repository**: up2d8-frontend
@@ -9,9 +9,9 @@
 
 ## What This Is
 
-A **React-based web application** that provides personalized news digests and intelligent chat functionality powered by Google's Gemini AI. The application helps users stay up-to-date with news and information through an AI-powered chat interface.
+A **React Native mobile application** for personal news digests and information management. The app provides a native mobile experience with custom theming, smooth navigation, and cross-platform support for iOS and Android.
 
-Think of it as your **personal AI news assistant** - bringing you relevant news and enabling natural conversation about current events.
+Think of it as your **personal mobile news companion** - bringing you relevant news and information in a beautiful, native mobile interface.
 
 ---
 
@@ -39,15 +39,15 @@ In today's digital landscape, users typically face:
 
 ## The Solution
 
-### Unified AI-Powered News Experience
+### Native Mobile News Experience
 
-An integrated web application that combines:
+A React Native mobile application that provides:
 
-1. **Personal News Digest**: Curated news feed based on user preferences
-2. **AI Chat Interface**: Powered by Google's Gemini AI for natural conversations
-3. **Single Platform**: One app for news consumption and exploration
-4. **Interactive Experience**: Ask questions, get deeper context, explore topics
-5. **Modern UI**: React 19-based responsive interface
+1. **Personal News Digest**: Curated news feed accessible on mobile devices
+2. **Native Performance**: Smooth, responsive mobile experience
+3. **Cross-Platform**: Works on both iOS and Android
+4. **Custom Theming**: Dark mode with beautiful gradients and animations
+5. **Modern Navigation**: Bottom tab navigation with smooth transitions
 
 ### Key Innovation: Conversational News
 

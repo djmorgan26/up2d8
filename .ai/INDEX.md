@@ -2,13 +2,16 @@
 
 **Last Updated**: 2025-11-08
 **Project Phase**: Early Development
-**Knowledge Items**: 0 features • 0 components • 0 patterns
+**Knowledge Items**: 0 features • 0 components • 0 patterns • 2 decisions
 
 ---
 
 ## 🆕 Recent Changes
 
 ### 2025-11-08
+- 🧹 **Cleaned**: Removed all React desktop web app files (36 files, 2,073 lines) → [ADR 002](./context/decisions/002-focus-on-react-native.md)
+- 📱 **Focused**: Repository now exclusively contains React Native mobile app
+- 📝 **Updated**: README.md and claude.md to reflect mobile-first focus
 - 🎉 **Initialized** AI knowledge management system for up2d8 project
 - 📁 **Created** foundation structure (claude.md, INDEX.md, GUIDE.md)
 - 📝 **Established** context documentation (overview.md, architecture.md)
@@ -24,7 +27,7 @@
 ### Project Context
 - [Overview](./context/overview.md) - What this project does and why
 - [Architecture](./context/architecture.md) - How the system is structured
-- [Decisions](./context/decisions/) - Architecture Decision Records (ADRs) - **1 recorded**
+- [Decisions](./context/decisions/) - Architecture Decision Records (ADRs) - **2 recorded**
 
 ### 🎨 Personal Preferences (Cross-Project Standards)
 *These apply to all your projects and are referenced, not modified.*
@@ -43,28 +46,28 @@
 
 ## 📊 Project Stats
 
-- **Total knowledge files**: 7 (overview, architecture, 4 preferences, 1 decision)
+- **Total knowledge files**: 8 (overview, architecture, 4 preferences, 2 decisions)
 - **Features documented**: 0
 - **Components documented**: 0
 - **Patterns captured**: 0
-- **Decisions recorded**: 1
+- **Decisions recorded**: 2
 - **Personal preferences**: 4 (coding, errors, testing, docs)
-- **Tech Stack**: React 19, TypeScript, Vite, Google Gemini AI
-- **Last commit**: Enhanced UI with animations and improved styling
+- **Tech Stack**: React Native 0.82.1, TypeScript, React Navigation 7.x
+- **Last commit**: Clean up project to focus on React Native mobile app
 
 ---
 
 ## 🎯 Current Focus
 
-**Phase**: Early Development - Building core news digest and chat features
+**Phase**: Early Development - Building React Native mobile app
 
 **Next Steps**:
-1. Continue developing UI components
-2. Integrate Google Gemini AI for chat functionality
-3. Implement news digest aggregation
+1. Continue developing mobile UI components
+2. Implement news digest features for mobile
+3. Add navigation and routing enhancements
 4. Use `/capture` to document features as they're built
 
-**Active Work**: Setting up frontend application with React 19 and design system
+**Active Work**: React Native mobile app with custom theming and bottom tab navigation
 
 ---
 
@@ -79,7 +82,8 @@
 ### Patterns (0)
 *No patterns documented yet. Patterns will emerge as you build features.*
 
-### Decisions (1)
+### Decisions (2)
+- ✅ [002: Focus on React Native](./context/decisions/002-focus-on-react-native.md) - Repository restructure to mobile-only
 - ✅ [001: Personal Preferences System](./context/decisions/001-personal-preferences-system.md) - Cross-project standards approach
 
 ---
