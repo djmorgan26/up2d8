@@ -1,17 +1,28 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Animated } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
-import { colors, spacing, typography, borderRadius } from '../theme/tokens';
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+  shadows,
+} from '../theme/tokens';
+import LinearGradient from 'react-native-linear-gradient';
 
 const plans = [
   {
     id: 1,
     name: 'Basic',
     price: 'Free',
-    features: ['Access to basic features', 'Limited storage', 'Community support'],
+    features: [
+      'Access to basic features',
+      'Limited storage',
+      'Community support',
+    ],
     icon: 'gift-outline',
     color: colors.neutral[500],
     isPopular: false,
@@ -20,7 +31,12 @@ const plans = [
     id: 2,
     name: 'Pro',
     price: '$9.99/mo',
-    features: ['All basic features', 'Unlimited storage', 'Priority support', 'Advanced analytics'],
+    features: [
+      'All basic features',
+      'Unlimited storage',
+      'Priority support',
+      'Advanced analytics',
+    ],
     icon: 'star-outline',
     color: colors.primary[500],
     isPopular: true,
@@ -29,104 +45,140 @@ const plans = [
     id: 3,
     name: 'Enterprise',
     price: '$29.99/mo',
-    features: ['All Pro features', 'Custom integrations', 'Dedicated account manager', '24/7 premium support'],
+    features: [
+      'All Pro features',
+      'Custom integrations',
+      'Dedicated account manager',
+      '24/7 premium support',
+    ],
     icon: 'rocket-outline',
     color: colors.accent[500],
     isPopular: false,
   },
 ];
 
+const PlanCard = ({ plan, theme }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (plan.isPopular) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scaleAnim, {
+            toValue: 1.02,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+        ]),
+      ).start();
+    }
+  }, [plan.isPopular, scaleAnim]);
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <GlassCard
+        style={[styles.planCard, plan.isPopular && styles.popularCard]}
+        blurIntensity={plan.isPopular ? 'heavy' : 'medium'}
+      >
+        {plan.isPopular && (
+          <View
+            style={[
+              styles.popularBadge,
+              { backgroundColor: theme.colors.primary },
+            ]}
+          >
+            <Text style={styles.popularText}>Most Popular</Text>
+          </View>
+        )}
+
+        <View style={[styles.planIcon, { backgroundColor: plan.color }]}>
+          <Icon name={plan.icon} size={40} color="white" />
+        </View>
+
+        <Text style={[styles.planName, { color: theme.colors.textPrimary }]}>
+          {plan.name}
+        </Text>
+
+        <Text style={[styles.planPrice, { color: theme.colors.primary }]}>
+          {plan.price}
+        </Text>
+
+        <View style={styles.featuresContainer}>
+          {plan.features.map((feature, index) => (
+            <View key={index} style={styles.featureRow}>
+              <Icon name="checkmark-circle" size={20} color={plan.color} />
+              <Text
+                style={[
+                  styles.featureText,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
+                {feature}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <GlassButton
+          onPress={() => console.log(`Subscribe to ${plan.name}`)}
+          variant={plan.isPopular ? 'primary' : 'secondary'}
+          fullWidth
+          style={styles.subscribeButton}
+        >
+          {plan.price === 'Free' ? 'Current Plan' : 'Subscribe Now'}
+        </GlassButton>
+      </GlassCard>
+    </Animated.View>
+  );
+};
+
 const SubscribePage: React.FC = () => {
   const { theme } = useTheme();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Gradient Background */}
-      <View style={styles.gradientContainer}>
-        <View
-          style={[
-            styles.gradient,
-            {
-              backgroundColor: colors.primary[700],
-              opacity: 0.15,
-            },
-          ]}
-        />
-      </View>
+      <LinearGradient
+        colors={[colors.primary[700], theme.colors.background]}
+        style={styles.gradientContainer}
+      />
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Section */}
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
             Choose Your Plan
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+          <Text
+            style={[styles.subtitle, { color: theme.colors.textSecondary }]}
+          >
             Unlock premium features and take your experience to the next level
           </Text>
         </View>
 
-        {/* Plans */}
         {plans.map((plan) => (
-          <GlassCard
-            key={plan.id}
-            style={[
-              styles.planCard,
-              plan.isPopular && styles.popularCard,
-            ]}
-            blurIntensity={plan.isPopular ? 'heavy' : 'medium'}
-          >
-            {plan.isPopular && (
-              <View style={[styles.popularBadge, { backgroundColor: theme.colors.primary }]}>
-                <Text style={styles.popularText}>Most Popular</Text>
-              </View>
-            )}
-
-            <View style={[styles.planIcon, { backgroundColor: plan.color }]}>
-              <Icon name={plan.icon} size={40} color="white" />
-            </View>
-
-            <Text style={[styles.planName, { color: theme.colors.textPrimary }]}>
-              {plan.name}
-            </Text>
-
-            <Text style={[styles.planPrice, { color: theme.colors.primary }]}>
-              {plan.price}
-            </Text>
-
-            <View style={styles.featuresContainer}>
-              {plan.features.map((feature, index) => (
-                <View key={index} style={styles.featureRow}>
-                  <Icon name="checkmark-circle" size={20} color={plan.color} />
-                  <Text style={[styles.featureText, { color: theme.colors.textSecondary }]}>
-                    {feature}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            <GlassButton
-              onPress={() => console.log(`Subscribe to ${plan.name}`)}
-              variant={plan.isPopular ? 'primary' : 'secondary'}
-              fullWidth
-              style={styles.subscribeButton}
-            >
-              {plan.price === 'Free' ? 'Current Plan' : 'Subscribe Now'}
-            </GlassButton>
-          </GlassCard>
+          <PlanCard key={plan.id} plan={plan} theme={theme} />
         ))}
 
-        {/* Additional Info */}
         <GlassCard style={styles.infoCard}>
-          <Icon name="information-circle-outline" size={32} color={theme.colors.info} />
+          <Icon
+            name="information-circle-outline"
+            size={32}
+            color={theme.colors.info}
+          />
           <Text style={[styles.infoTitle, { color: theme.colors.textPrimary }]}>
             30-Day Money-Back Guarantee
           </Text>
           <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>
-            Try any plan risk-free. If you're not satisfied, get a full refund within 30 days.
+            Try any plan risk-free. If you're not satisfied, get a full refund
+            within 30 days.
           </Text>
         </GlassCard>
       </ScrollView>
@@ -144,10 +196,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 300,
-    overflow: 'hidden',
-  },
-  gradient: {
-    flex: 1,
+    opacity: 0.15,
     borderBottomLeftRadius: borderRadius['3xl'],
     borderBottomRightRadius: borderRadius['3xl'],
   },
@@ -184,6 +233,7 @@ const styles = StyleSheet.create({
   popularCard: {
     borderWidth: 2,
     borderColor: colors.primary[500],
+    ...shadows.lg,
   },
   popularBadge: {
     position: 'absolute',
@@ -205,6 +255,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing[4],
+    ...shadows.md,
   },
   planName: {
     fontSize: typography.fontSize['2xl'],

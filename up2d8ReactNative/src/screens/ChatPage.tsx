@@ -1,109 +1,148 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, LinearGradient } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { GlassCard } from '../components/GlassCard';
 import { GlassButton } from '../components/GlassButton';
-import { colors, spacing, typography, borderRadius } from '../theme/tokens';
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+  shadows,
+} from '../theme/tokens';
+import LinearGradient from 'react-native-linear-gradient';
 
 const ChatPage: React.FC = () => {
   const { theme } = useTheme();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Gradient Background */}
-      <View style={styles.gradientContainer}>
-        <View
-          style={[
-            styles.gradient,
-            {
-              backgroundColor: theme.colors.primary,
-              opacity: 0.1,
-            },
-          ]}
-        />
-      </View>
+      <LinearGradient
+        colors={[theme.colors.primary, theme.colors.background]}
+        style={styles.gradientContainer}
+      />
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Section */}
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
             Messages
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+          <Text
+            style={[styles.subtitle, { color: theme.colors.textSecondary }]}
+          >
             Stay connected with your conversations
           </Text>
         </View>
 
-        {/* Recent Chats */}
         <GlassCard style={styles.card}>
-          <View style={styles.chatItem}>
-            <View style={[styles.avatar, { backgroundColor: colors.primary[400] }]}>
+          <TouchableOpacity style={styles.chatItem}>
+            <View
+              style={[styles.avatar, { backgroundColor: colors.primary[400] }]}
+            >
               <Icon name="person" size={24} color="white" />
             </View>
             <View style={styles.chatContent}>
-              <Text style={[styles.chatName, { color: theme.colors.textPrimary }]}>
+              <Text
+                style={[styles.chatName, { color: theme.colors.textPrimary }]}
+              >
                 John Doe
               </Text>
-              <Text style={[styles.chatMessage, { color: theme.colors.textSecondary }]}>
+              <Text
+                style={[
+                  styles.chatMessage,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
                 Hey! How are you doing?
               </Text>
             </View>
-            <Text style={[styles.chatTime, { color: theme.colors.textSecondary }]}>
+            <Text
+              style={[styles.chatTime, { color: theme.colors.textSecondary }]}
+            >
               2m
             </Text>
-          </View>
+          </TouchableOpacity>
         </GlassCard>
 
         <GlassCard style={styles.card}>
-          <View style={styles.chatItem}>
-            <View style={[styles.avatar, { backgroundColor: colors.accent[400] }]}>
+          <TouchableOpacity style={styles.chatItem}>
+            <View
+              style={[styles.avatar, { backgroundColor: colors.accent[400] }]}
+            >
               <Icon name="people" size={24} color="white" />
             </View>
             <View style={styles.chatContent}>
-              <Text style={[styles.chatName, { color: theme.colors.textPrimary }]}>
+              <Text
+                style={[styles.chatName, { color: theme.colors.textPrimary }]}
+              >
                 Team Chat
               </Text>
-              <Text style={[styles.chatMessage, { color: theme.colors.textSecondary }]}>
+              <Text
+                style={[
+                  styles.chatMessage,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
                 New updates are available
               </Text>
             </View>
-            <Text style={[styles.chatTime, { color: theme.colors.textSecondary }]}>
+            <Text
+              style={[styles.chatTime, { color: theme.colors.textSecondary }]}
+            >
               15m
             </Text>
-          </View>
+          </TouchableOpacity>
         </GlassCard>
 
         <GlassCard style={styles.card}>
-          <View style={styles.chatItem}>
-            <View style={[styles.avatar, { backgroundColor: colors.primary[600] }]}>
+          <TouchableOpacity style={styles.chatItem}>
+            <View
+              style={[styles.avatar, { backgroundColor: colors.primary[600] }]}
+            >
               <Icon name="chatbubbles" size={24} color="white" />
             </View>
             <View style={styles.chatContent}>
-              <Text style={[styles.chatName, { color: theme.colors.textPrimary }]}>
+              <Text
+                style={[styles.chatName, { color: theme.colors.textPrimary }]}
+              >
                 Support
               </Text>
-              <Text style={[styles.chatMessage, { color: theme.colors.textSecondary }]}>
+              <Text
+                style={[
+                  styles.chatMessage,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
                 We're here to help!
               </Text>
             </View>
-            <Text style={[styles.chatTime, { color: theme.colors.textSecondary }]}>
+            <Text
+              style={[styles.chatTime, { color: theme.colors.textSecondary }]}
+            >
               1h
             </Text>
-          </View>
+          </TouchableOpacity>
         </GlassCard>
 
-        {/* Action Button */}
         <GlassButton
           onPress={() => console.log('Start new chat')}
           style={styles.button}
+          variant="primary"
+          size="lg"
         >
           <View style={styles.buttonContent}>
-            <Icon name="add-circle-outline" size={20} color="white" />
+            <Icon name="add-circle-outline" size={24} color="white" />
             <Text style={styles.buttonText}>Start New Chat</Text>
           </View>
         </GlassButton>
@@ -122,10 +161,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 300,
-    overflow: 'hidden',
-  },
-  gradient: {
-    flex: 1,
+    opacity: 0.1,
     borderBottomLeftRadius: borderRadius['3xl'],
     borderBottomRightRadius: borderRadius['3xl'],
   },
@@ -155,6 +191,7 @@ const styles = StyleSheet.create({
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: spacing[2],
   },
   avatar: {
     width: 48,
@@ -163,6 +200,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing[3],
+    ...shadows.sm,
   },
   chatContent: {
     flex: 1,
@@ -179,7 +217,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.xs,
   },
   button: {
-    marginTop: spacing[4],
+    marginTop: spacing[6],
   },
   buttonContent: {
     flexDirection: 'row',
@@ -188,7 +226,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-    fontSize: typography.fontSize.base,
+    fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.semibold as any,
   },
 });

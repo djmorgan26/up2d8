@@ -83,11 +83,14 @@ export const glass = {
     dark: 'rgba(0, 0, 0, 0.3)',
     ultraDark: 'rgba(0, 0, 0, 0.5)',
   },
+
+  // New border gradient
+  borderGradient: ['rgba(255, 255, 255, 0.4)', 'rgba(255, 255, 255, 0.1)'],
 };
 
-// Typography scale (SF Pro inspired)
-export const typography = {
-  fontSize: {
+// Glassmorphism constants (Medium intensity - iOS Widgets style)
+export const glass = {
+  blur: {
     xs: 12,
     sm: 14,
     base: 16,

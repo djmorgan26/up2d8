@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useRef } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -8,8 +8,10 @@ import {
   StyleProp,
   Platform,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
+import LinearGradient from 'react-native-linear-gradient';
 import {
   colors,
   glass,
@@ -42,6 +44,24 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
   loading = false,
   fullWidth = false,
 }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      speed: 50,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+    }).start();
+  };
+
   const sizeStyles = {
     sm: {
       paddingVertical: spacing[2],
@@ -74,6 +94,7 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
         <Text
           style={[
             styles.text,
+            styles.textShadow,
             { fontSize: sizeStyles.fontSize },
             textStyle,
             disabled && styles.disabledText,
@@ -87,12 +108,18 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
     </>
   );
 
+  const animatedStyle = {
+    transform: [{ scale: scaleAnim }],
+  };
+
   if (Platform.OS === 'ios') {
     return (
       <TouchableOpacity
         onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         disabled={disabled || loading}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
         style={[
           styles.container,
           {
@@ -105,12 +132,20 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
           style,
         ]}
       >
-        <BlurView
-          style={styles.absolute}
-          blurType="light"
-          blurAmount={glass.blur.medium}
-          reducedTransparencyFallbackColor={variantColors}
-        />
+        <Animated.View style={[styles.absolute, animatedStyle]}>
+          <BlurView
+            style={styles.absolute}
+            blurType="light"
+            blurAmount={glass.blur.medium}
+            reducedTransparencyFallbackColor={variantColors}
+          />
+          <LinearGradient
+            colors={colors.borderGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.border}
+          />
+        </Animated.View>
         {content}
       </TouchableOpacity>
     );
@@ -146,8 +181,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   absolute: {
     position: 'absolute',
@@ -155,6 +188,16 @@ const styles = StyleSheet.create({
     left: 0,
     bottom: 0,
     right: 0,
+  },
+  border: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   fullWidth: {
     width: '100%',
@@ -169,5 +212,10 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     color: colors.neutral[400],
+  },
+  textShadow: {
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });

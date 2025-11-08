@@ -1,95 +1,181 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Animated,
+} from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { GlassCard } from '../components/GlassCard';
-import { colors, spacing, typography, borderRadius } from '../theme/tokens';
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+  shadows,
+} from '../theme/tokens';
+import LinearGradient from 'react-native-linear-gradient';
 
 const categories = [
-  { id: 1, name: 'Technology', icon: 'laptop-outline', color: colors.primary[500] },
-  { id: 2, name: 'Design', icon: 'color-palette-outline', color: colors.accent[500] },
-  { id: 3, name: 'Business', icon: 'briefcase-outline', color: colors.primary[600] },
+  {
+    id: 1,
+    name: 'Technology',
+    icon: 'laptop-outline',
+    color: colors.primary[500],
+  },
+  {
+    id: 2,
+    name: 'Design',
+    icon: 'color-palette-outline',
+    color: colors.accent[500],
+  },
+  {
+    id: 3,
+    name: 'Business',
+    icon: 'briefcase-outline',
+    color: colors.primary[600],
+  },
   { id: 4, name: 'Health', icon: 'fitness-outline', color: colors.accent[600] },
   { id: 5, name: 'Science', icon: 'flask-outline', color: colors.primary[700] },
-  { id: 6, name: 'Education', icon: 'school-outline', color: colors.accent[400] },
+  {
+    id: 6,
+    name: 'Education',
+    icon: 'school-outline',
+    color: colors.accent[400],
+  },
 ];
+
+const CategoryCard = ({ category, theme }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.95,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <TouchableOpacity
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      activeOpacity={0.9}
+    >
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <GlassCard style={styles.categoryCard} blurIntensity="medium">
+          <View
+            style={[styles.iconContainer, { backgroundColor: category.color }]}
+          >
+            <Icon name={category.icon} size={32} color="white" />
+          </View>
+          <Text
+            style={[styles.categoryName, { color: theme.colors.textPrimary }]}
+          >
+            {category.name}
+          </Text>
+        </GlassCard>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
 
 const BrowsePage: React.FC = () => {
   const { theme } = useTheme();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Gradient Background */}
-      <View style={styles.gradientContainer}>
-        <View
-          style={[
-            styles.gradient,
-            {
-              backgroundColor: theme.colors.accent,
-              opacity: 0.1,
-            },
-          ]}
-        />
-      </View>
+      <LinearGradient
+        colors={[theme.colors.accent, theme.colors.background]}
+        style={styles.gradientContainer}
+      />
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Section */}
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
             Discover
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+          <Text
+            style={[styles.subtitle, { color: theme.colors.textSecondary }]}
+          >
             Explore topics that interest you
           </Text>
         </View>
 
-        {/* Categories Grid */}
         <View style={styles.grid}>
           {categories.map((category) => (
-            <GlassCard
+            <CategoryCard
               key={category.id}
-              style={styles.categoryCard}
-              blurIntensity="medium"
-            >
-              <View style={[styles.iconContainer, { backgroundColor: category.color }]}>
-                <Icon name={category.icon} size={32} color="white" />
-              </View>
-              <Text style={[styles.categoryName, { color: theme.colors.textPrimary }]}>
-                {category.name}
-              </Text>
-            </GlassCard>
+              category={category}
+              theme={theme}
+            />
           ))}
         </View>
 
-        {/* Featured Content */}
-        <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>
+        <Text
+          style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}
+        >
           Featured Content
         </Text>
 
         <GlassCard style={styles.featuredCard}>
-          <View style={[styles.featuredImage, { backgroundColor: colors.primary[300] }]}>
+          <View
+            style={[
+              styles.featuredImage,
+              { backgroundColor: colors.primary[300] },
+            ]}
+          >
             <Icon name="rocket-outline" size={48} color="white" />
           </View>
-          <Text style={[styles.featuredTitle, { color: theme.colors.textPrimary }]}>
+          <Text
+            style={[styles.featuredTitle, { color: theme.colors.textPrimary }]}
+          >
             Getting Started Guide
           </Text>
-          <Text style={[styles.featuredDescription, { color: theme.colors.textSecondary }]}>
-            Learn the basics and unlock powerful features to enhance your experience.
+          <Text
+            style={[
+              styles.featuredDescription,
+              { color: theme.colors.textSecondary },
+            ]}
+          >
+            Learn the basics and unlock powerful features to enhance your
+            experience.
           </Text>
         </GlassCard>
 
         <GlassCard style={styles.featuredCard}>
-          <View style={[styles.featuredImage, { backgroundColor: colors.accent[300] }]}>
+          <View
+            style={[
+              styles.featuredImage,
+              { backgroundColor: colors.accent[300] },
+            ]}
+          >
             <Icon name="star-outline" size={48} color="white" />
           </View>
-          <Text style={[styles.featuredTitle, { color: theme.colors.textPrimary }]}>
+          <Text
+            style={[styles.featuredTitle, { color: theme.colors.textPrimary }]}
+          >
             Premium Features
           </Text>
-          <Text style={[styles.featuredDescription, { color: theme.colors.textSecondary }]}>
+          <Text
+            style={[
+              styles.featuredDescription,
+              { color: theme.colors.textSecondary },
+            ]}
+          >
             Discover exclusive content and advanced tools for premium members.
           </Text>
         </GlassCard>
@@ -108,10 +194,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 300,
-    overflow: 'hidden',
-  },
-  gradient: {
-    flex: 1,
+    opacity: 0.1,
     borderBottomLeftRadius: borderRadius['3xl'],
     borderBottomRightRadius: borderRadius['3xl'],
   },
@@ -138,14 +221,14 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -spacing[2],
+    justifyContent: 'space-between',
     marginBottom: spacing[6],
   },
   categoryCard: {
-    width: '47%',
-    margin: spacing[2],
+    width: '100%',
     alignItems: 'center',
     paddingVertical: spacing[6],
+    marginBottom: spacing[4],
   },
   iconContainer: {
     width: 64,
@@ -154,6 +237,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing[3],
+    ...shadows.sm,
   },
   categoryName: {
     fontSize: typography.fontSize.sm,
