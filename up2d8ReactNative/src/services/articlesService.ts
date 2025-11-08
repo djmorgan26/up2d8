@@ -1,5 +1,6 @@
-import { apiClient } from './api';
+import { apiClient, isUsingMockData } from './api';
 import { Article } from '../types';
+import { MOCK_ARTICLES, simulateNetworkDelay } from './mockData';
 
 /**
  * Articles Service - Fetches news articles from the backend
@@ -16,6 +17,14 @@ export const getAllArticles = async (): Promise<Article[]> => {
     return response;
   } catch (error) {
     console.error('[ArticlesService] Error fetching articles:', error);
+
+    // If backend is offline, use mock data
+    if (isUsingMockData()) {
+      console.log('[ArticlesService] Using mock articles data');
+      await simulateNetworkDelay();
+      return MOCK_ARTICLES;
+    }
+
     throw error;
   }
 };
@@ -36,6 +45,17 @@ export const getArticle = async (articleId: string): Promise<Article> => {
     return response;
   } catch (error) {
     console.error('[ArticlesService] Error fetching article:', error);
+
+    // If backend is offline, use mock data
+    if (isUsingMockData()) {
+      console.log('[ArticlesService] Using mock article data');
+      await simulateNetworkDelay();
+      const article = MOCK_ARTICLES.find(a => a.id === articleId);
+      if (article) {
+        return article;
+      }
+    }
+
     throw error;
   }
 };
