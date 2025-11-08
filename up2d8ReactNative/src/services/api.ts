@@ -1,14 +1,16 @@
 import { ApiError } from '../types';
 
 // Configuration
-// In production, this should be loaded from environment variables
-// For now, we'll use a placeholder that can be configured later
+// TODO: Replace with your actual backend URL
+// Dev: Use your local backend or ngrok tunnel for testing on physical device
+// Prod: Use your deployed Azure/cloud backend URL
 const API_BASE_URL = __DEV__
-  ? 'http://localhost:8000'  // Local development
-  : 'https://your-backend.azurewebsites.net';  // Production (replace with actual URL)
+  ? 'http://localhost:8000'  // Local development backend
+  : 'https://your-backend.azurewebsites.net';  // Production backend URL
 
 // You can override this by setting a custom URL
 let customApiUrl: string | null = null;
+let useMockData = false;
 
 export const setApiBaseUrl = (url: string) => {
   customApiUrl = url;
@@ -16,6 +18,15 @@ export const setApiBaseUrl = (url: string) => {
 
 export const getApiBaseUrl = (): string => {
   return customApiUrl || API_BASE_URL;
+};
+
+export const setUseMockData = (enabled: boolean) => {
+  useMockData = enabled;
+  console.log(`[API] Mock data ${enabled ? 'enabled' : 'disabled'}`);
+};
+
+export const isUsingMockData = (): boolean => {
+  return useMockData;
 };
 
 /**
@@ -73,7 +84,7 @@ class ApiClient {
   }
 
   /**
-   * Core request method with error handling
+   * Core request method with error handling and offline fallback
    */
   private async request<T>(endpoint: string, options: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
@@ -86,6 +97,8 @@ class ApiClient {
         headers: {
           ...options.headers,
         },
+        // Add timeout for faster offline detection
+        signal: AbortSignal.timeout(10000), // 10 second timeout
       });
 
       // Try to parse JSON response
@@ -110,14 +123,27 @@ class ApiClient {
       }
 
       console.log(`[API Success] ${options.method} ${url}`);
+
+      // Backend is online, disable mock data
+      if (useMockData) {
+        setUseMockData(false);
+      }
+
       return data as T;
 
     } catch (error) {
-      // Handle network errors
-      if (error instanceof TypeError) {
-        console.error('[API Network Error]:', error.message);
+      // Handle network errors and timeouts - backend appears offline
+      if (error instanceof TypeError || error.name === 'AbortError' || error.name === 'TimeoutError') {
+        console.warn('[API] Backend appears offline, enabling mock data mode');
+
+        // Enable mock data for future requests
+        if (!useMockData) {
+          setUseMockData(true);
+        }
+
+        // Re-throw with offline indicator
         const apiError: ApiError = {
-          message: 'Network error. Please check your connection and try again.',
+          message: 'Backend offline - using demo data',
           status: 0,
         };
         throw apiError;

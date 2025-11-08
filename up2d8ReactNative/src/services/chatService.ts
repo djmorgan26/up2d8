@@ -1,5 +1,6 @@
-import { apiClient } from './api';
+import { apiClient, isUsingMockData } from './api';
 import { ChatRequest, ChatResponse } from '../types';
+import { getMockChatResponse, simulateNetworkDelay } from './mockData';
 
 /**
  * Chat Service - Interfaces with Gemini AI via backend API
@@ -29,6 +30,14 @@ export const sendChatMessage = async (prompt: string): Promise<ChatResponse> => 
     };
   } catch (error) {
     console.error('[ChatService] Error sending message:', error);
+
+    // If backend is offline, use mock data
+    if (isUsingMockData()) {
+      console.log('[ChatService] Using mock chat response');
+      await simulateNetworkDelay(800); // Simulate thinking time
+      return getMockChatResponse(prompt);
+    }
+
     throw error;
   }
 };

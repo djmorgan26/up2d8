@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import { apiClient, isUsingMockData } from './api';
 import {
   User,
   CreateUserRequest,
@@ -7,6 +7,7 @@ import {
   UpdateUserResponse,
   DeleteUserResponse,
 } from '../types';
+import { MOCK_USER, simulateNetworkDelay } from './mockData';
 
 /**
  * User Service - Manages user subscriptions and preferences
@@ -41,6 +42,17 @@ export const createUser = async (
     return response;
   } catch (error) {
     console.error('[UserService] Error creating user:', error);
+
+    // If backend is offline, return mock response
+    if (isUsingMockData()) {
+      console.log('[UserService] Using mock user creation');
+      await simulateNetworkDelay();
+      return {
+        message: '[DEMO MODE] Subscription confirmed',
+        user_id: MOCK_USER.user_id,
+      };
+    }
+
     throw error;
   }
 };
@@ -61,6 +73,14 @@ export const getUser = async (userId: string): Promise<User> => {
     return response;
   } catch (error) {
     console.error('[UserService] Error fetching user:', error);
+
+    // If backend is offline, return mock user
+    if (isUsingMockData()) {
+      console.log('[UserService] Using mock user data');
+      await simulateNetworkDelay();
+      return MOCK_USER;
+    }
+
     throw error;
   }
 };
@@ -96,6 +116,16 @@ export const updateUserTopics = async (
     return response;
   } catch (error) {
     console.error('[UserService] Error updating topics:', error);
+
+    // If backend is offline, return mock response
+    if (isUsingMockData()) {
+      console.log('[UserService] Using mock topics update');
+      await simulateNetworkDelay();
+      return {
+        message: '[DEMO MODE] Preferences updated',
+      };
+    }
+
     throw error;
   }
 };
@@ -129,6 +159,16 @@ export const updateUserPreferences = async (
     return response;
   } catch (error) {
     console.error('[UserService] Error updating preferences:', error);
+
+    // If backend is offline, return mock response
+    if (isUsingMockData()) {
+      console.log('[UserService] Using mock preference update');
+      await simulateNetworkDelay();
+      return {
+        message: '[DEMO MODE] Preferences updated',
+      };
+    }
+
     throw error;
   }
 };
@@ -174,6 +214,16 @@ export const updateUser = async (
     return response;
   } catch (error) {
     console.error('[UserService] Error updating user:', error);
+
+    // If backend is offline, return mock response
+    if (isUsingMockData()) {
+      console.log('[UserService] Using mock user update');
+      await simulateNetworkDelay();
+      return {
+        message: '[DEMO MODE] Preferences updated',
+      };
+    }
+
     throw error;
   }
 };
@@ -194,6 +244,16 @@ export const deleteUser = async (userId: string): Promise<DeleteUserResponse> =>
     return response;
   } catch (error) {
     console.error('[UserService] Error deleting user:', error);
+
+    // If backend is offline, return mock response
+    if (isUsingMockData()) {
+      console.log('[UserService] Using mock user deletion');
+      await simulateNetworkDelay();
+      return {
+        message: '[DEMO MODE] User deleted',
+      };
+    }
+
     throw error;
   }
 };
