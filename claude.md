@@ -1,9 +1,9 @@
-# up2d8 - React Native Mobile App
+# UP2D8 - Full-Stack Monorepo
 
-**Project Type**: React Native Mobile Application
-**Purpose**: Personal news digest and information management mobile app
-**Tech Stack**: React Native 0.82.1, TypeScript, React Navigation 7.x
-**Status**: Early Development
+**Project Type**: Full-Stack Monorepo (Backend API + Azure Functions + Mobile App)
+**Purpose**: Personal news digest and information management platform
+**Tech Stack**: FastAPI (Python), Azure Functions, React Native, MongoDB
+**Status**: Monorepo Migration Complete - Active Development
 **Last Updated**: 2025-11-08
 
 ---
@@ -31,7 +31,9 @@
 │   └── decisions/        ← Important decisions (ADRs)
 │
 └── knowledge/            ← Captured knowledge (grows over time)
-    ├── features/         ← Feature documentation
+    ├── backend/          ← Backend API features
+    ├── functions/        ← Azure Functions features
+    ├── mobile/           ← Mobile app features
     ├── components/       ← Component documentation
     └── patterns/         ← Coding patterns used
 ```
@@ -112,32 +114,59 @@ This knowledge base works with **any AI assistant**:
 
 ### What This Is
 
-A React Native mobile application for personal news digests and information management. The app provides a native mobile experience with custom theming and smooth navigation.
+A full-stack personal news digest and information management platform consisting of:
 
-### Core Features (In Development)
+**Backend API** (`packages/backend-api/`)
+- FastAPI REST API serving mobile and web clients
+- MongoDB database for articles, users, feeds, analytics
+- Google Gemini AI integration for chat features
+- Azure Key Vault for secrets management
 
-- React Native mobile app architecture
-- Bottom tab navigation
-- Custom theming system with dark mode
-- Native animations and transitions
-- Cross-platform (iOS & Android)
+**Azure Functions** (`packages/functions/`)
+- Serverless background tasks and automation
+- RSS feed scraping (daily schedule)
+- Newsletter generation (personalized digests)
+- Web crawling orchestration (durable functions)
+- Email delivery via SendGrid
+
+**Mobile App** (`packages/mobile-app/`)
+- React Native app for iOS and Android
+- News browsing with AI-powered chat
+- Offline mode with mock data fallback
+- Custom theming with dark mode support
+
+**Shared** (`packages/shared/`)
+- Common types, schemas, and utilities
+- Single source of truth for data models
+
+### Architecture
+
+```
+Mobile App → Backend API → Cosmos DB (MongoDB)
+                ↑
+         Azure Functions (background tasks)
+```
 
 ### Tech Stack
 
-- **Mobile Framework**: React Native 0.82.1
-- **Language**: TypeScript
-- **Navigation**: React Navigation 7.x (Bottom Tabs, Native Stack)
-- **UI Libraries**: React Native Linear Gradient, React Native Blur, Vector Icons
-- **Platforms**: iOS & Android
+**Backend**:
+- FastAPI (Python), MongoDB, Azure Key Vault, Google Gemini
+
+**Functions**:
+- Azure Functions (Python), LangChain, Playwright, BeautifulSoup4
+
+**Mobile**:
+- React Native 0.82.1, TypeScript, React Navigation 7.x, Zustand
 
 ### Current Status
 
-**Phase**: Early Development
-**Features**: 0 documented
+**Phase**: Monorepo Migration Complete - Ready for Integrated Development
+**Packages**: 3 (backend-api, functions, mobile-app) + shared
+**Features**: 0 documented (use `/capture` to document as you build)
 **Components**: 0 documented
 **Patterns**: 0 documented
 
-See `.ai/context/overview.md` for full details.
+See `.ai/context/overview.md` and `.ai/INDEX.md` for full details.
 
 ---
 

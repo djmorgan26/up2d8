@@ -1,0 +1,11 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Azure Functions
+local.settings.json
+
+# Environment variables
+.env
+rss_feeds.txt

@@ -1,22 +1,28 @@
-# AI Knowledge Base Index
+# AI Knowledge Base Index - UP2D8 Monorepo
 
 **Last Updated**: 2025-11-08
-**Project Phase**: Early Development
+**Project Type**: Monorepo (Backend API + Azure Functions + Mobile App)
 **Knowledge Items**: 0 features • 0 components • 0 patterns • 2 decisions
 
 ---
 
 ## 🆕 Recent Changes
 
-### 2025-11-08
-- 🧹 **Cleaned**: Removed all React desktop web app files (36 files, 2,073 lines) → [ADR 002](./context/decisions/002-focus-on-react-native.md)
-- 📱 **Focused**: Repository now exclusively contains React Native mobile app
-- 📝 **Updated**: README.md and claude.md to reflect mobile-first focus
-- 🎉 **Initialized** AI knowledge management system for up2d8 project
-- 📁 **Created** foundation structure (claude.md, INDEX.md, GUIDE.md)
-- 📝 **Established** context documentation (overview.md, architecture.md)
+### 2025-11-08 - Monorepo Migration
+- 🏗️ **Migrated**: Transformed up2d8-frontend into full-stack monorepo
+- 📦 **Added**: Backend API (FastAPI) → `packages/backend-api/`
+- ⚡ **Added**: Azure Functions (serverless) → `packages/functions/`
+- 📱 **Moved**: React Native app → `packages/mobile-app/`
+- 🔧 **Created**: Shared package structure → `packages/shared/`
+- 📚 **Tagged**: All source repos with `archive-pre-monorepo-2025-01-08`
+- ⚙️ **Configured**: Root package.json (npm workspaces) + pyproject.toml
+- 🎯 **Organized**: Monorepo structure with docs/, scripts/, infrastructure/
+
+### 2025-11-08 - Pre-Migration
+- 🧹 **Cleaned**: Removed all React desktop web app files
+- 📱 **Focused**: Repository was mobile-only before monorepo migration
+- 🎉 **Initialized** AI knowledge management system
 - 🔧 **Added** `/capture` command for automatic knowledge capture
-- 🎨 **Set up** design tokens (dark mode styling)
 
 ---
 
@@ -38,36 +44,49 @@
 - [Documentation Style](./preferences/documentation-style.md) - Docs philosophy, formats, examples
 
 ### Knowledge Base (Grows over time)
-- [Features](./knowledge/features/) - **1 documented** - Feature implementations
-- [Components](./knowledge/components/) - **0 documented** - System components
+- [Backend Features](./knowledge/backend/) - **0 documented** - Backend API features
+- [Functions](./knowledge/functions/) - **0 documented** - Azure Functions features
+- [Mobile Features](./knowledge/mobile/) - **0 documented** - Mobile app features
+- [Components](./knowledge/components/) - **0 documented** - Shared components
 - [Patterns](./knowledge/patterns/) - **0 documented** - Coding patterns
 
 ---
 
 ## 📊 Project Stats
 
+- **Monorepo structure**: 3 packages (backend-api, functions, mobile-app) + shared
 - **Total knowledge files**: 8 (overview, architecture, 4 preferences, 2 decisions)
 - **Features documented**: 0
 - **Components documented**: 0
 - **Patterns captured**: 0
 - **Decisions recorded**: 2
 - **Personal preferences**: 4 (coding, errors, testing, docs)
-- **Tech Stack**: React Native 0.82.1, TypeScript, React Navigation 7.x
-- **Last commit**: Clean up project to focus on React Native mobile app
+- **Tech Stack**:
+  - Backend: FastAPI, MongoDB, Azure Key Vault
+  - Functions: Azure Functions (Python), LangChain, Playwright
+  - Mobile: React Native 0.82.1, TypeScript, React Navigation 7.x
+- **Last migration**: Monorepo consolidation from 3 repositories
 
 ---
 
 ## 🎯 Current Focus
 
-**Phase**: Early Development - Building React Native mobile app
+**Phase**: Monorepo Setup Complete - Ready for integrated development
+
+**Architecture**:
+- Backend API provides REST endpoints for articles, chat, users, analytics
+- Azure Functions handle background tasks (RSS scraping, newsletters, crawling)
+- Mobile app consumes backend API with offline fallback
+- Shared package for common types/schemas/utilities
 
 **Next Steps**:
-1. Continue developing mobile UI components
-2. Implement news digest features for mobile
-3. Add navigation and routing enhancements
-4. Use `/capture` to document features as they're built
+1. Consolidate documentation from all packages
+2. Create development scripts for local workflow
+3. Set up unified environment configuration
+4. Test all packages build and run successfully
+5. Use `/capture` to document the monorepo structure
 
-**Active Work**: React Native mobile app with custom theming and bottom tab navigation
+**Active Work**: Monorepo migration and setup
 
 ---
 

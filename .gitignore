@@ -1,8 +1,238 @@
-package-lock.json
-node_modules
-dist
+# UP2D8 Monorepo .gitignore
+# Prevents secrets and sensitive data from being committed to Git
+
+# ============================================
+# SECRETS & CREDENTIALS (NEVER COMMIT THESE!)
+# ============================================
+
+# Environment files with secrets
 .env
-.vscode
+.env.*
+.env.local
+.env.development
+.env.production
+.env.azure
+.env.test
+
+# Azure credentials
+local.settings.json
+*.publish
+*.pubxml
+.azure/
+
+# API keys and tokens
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================
+# Python
+# ============================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+/lib/
+/lib64/
+**/backend/**/lib/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# ============================================
+# Node.js / React Native
+# ============================================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+package-lock.json
+
+# React Native
+.expo/
+.expo-shared/
+
+# ============================================
+# Docker
+# ============================================
+
+# Docker volumes and data
+data/
+volumes/
+*.log
+
+# ============================================
+# IDEs and Editors
+# ============================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# macOS
 .DS_Store
-.claude
-.gemini
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ============================================
+# Logs
+# ============================================
+
+logs/
+*.log
+*.out
+
+# ============================================
+# AI/ML Models & Data
+# ============================================
+
+# ChromaDB persistence
+chroma_db/
+.chroma/
+
+# Model files (if downloaded locally)
+models/
+*.bin
+*.onnx
+*.pt
+*.pth
+
+# Large data files
+*.csv
+*.json.gz
+*.parquet
+
+# ============================================
+# Temporary files
+# ============================================
+
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# ============================================
+# Azure Functions
+# ============================================
+
+# Azure Functions artifacts
+__blobstorage__/
+__queuestorage__/
+__azurite_db*__.json
+.python_packages/
+
+# ============================================
+# Git
+# ============================================
+
+*.orig
+*.rej
+
+# ============================================
+# IMPORTANT EXCEPTIONS
+# (Files that SHOULD be committed)
+# ============================================
+
+# Keep example env files
+!.env.example
+!.env.template
+
+# Keep requirements files
+!requirements.txt
+!requirements-dev.txt
+
+# Keep Docker files
+!Dockerfile
+!docker-compose.yml
+!.dockerignore
+
+# Keep AI knowledge base and commands
+!.ai/
+!.claude/

@@ -1,0 +1,9 @@
+fastapi[all]
+uvicorn
+pymongo
+google-generativeai
+azure-identity
+azure-keyvault-secrets
+python-dotenv
+pytest
+httpx

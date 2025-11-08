@@ -1,0 +1,43 @@
+{
+  "name": "up2d8-monorepo",
+  "version": "1.0.0",
+  "description": "UP2D8 - Personal news digest and information management platform",
+  "private": true,
+  "workspaces": [
+    "packages/mobile-app"
+  ],
+  "scripts": {
+    "mobile": "cd packages/mobile-app && npm start",
+    "mobile:ios": "cd packages/mobile-app && npm run ios",
+    "mobile:android": "cd packages/mobile-app && npm run android",
+    "mobile:install": "cd packages/mobile-app && npm install",
+    "backend:install": "cd packages/backend-api && pip install -r requirements.txt",
+    "functions:install": "cd packages/functions && pip install -r requirements.txt",
+    "backend:dev": "cd packages/backend-api && uvicorn main:app --reload",
+    "functions:dev": "cd packages/functions && func start",
+    "test:backend": "cd packages/backend-api && pytest",
+    "test:functions": "cd packages/functions && pytest",
+    "test:mobile": "cd packages/mobile-app && npm test",
+    "install:all": "npm run mobile:install && npm run backend:install && npm run functions:install",
+    "test:all": "npm run test:backend && npm run test:functions && npm run test:mobile"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/up2d8"
+  },
+  "keywords": [
+    "news",
+    "digest",
+    "rss",
+    "mobile-app",
+    "react-native",
+    "fastapi",
+    "azure-functions"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
