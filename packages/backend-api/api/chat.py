@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import google.generativeai as genai
 import uuid
 from datetime import datetime, UTC
-from dependencies import get_db_client # Import the new dependency
+from dependencies import get_db_client, get_gemini_api_key
 
 router = APIRouter()
 
@@ -18,9 +18,10 @@ class MessageContent(BaseModel):
     content: str
 
 @router.post("/api/chat", status_code=status.HTTP_200_OK)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, api_key: str = Depends(get_gemini_api_key)):
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content(request.prompt)
         return {"text": response.text, "sources": []}
     except Exception as e:

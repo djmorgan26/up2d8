@@ -10,6 +10,7 @@ import { toast } from "sonner";
 const Chat = () => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { instance, accounts } = useMsal();
   const isAuthenticated = accounts.length > 0;
 
@@ -25,13 +26,42 @@ const Chat = () => {
 
     if (!message.trim()) return;
 
-    // Add user message
-    const newMessage = { role: "user", content: message };
-    setMessages([...messages, newMessage]);
+    const userMessage = { role: "user", content: message };
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setMessage("");
+    setIsLoading(true);
 
-    // TODO: Integrate with backend API
-    toast.info("Chat integration coming soon!");
+    try {
+      const accessToken = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account: accounts[0],
+      });
+
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken.accessToken}`,
+        },
+        body: JSON.stringify({ prompt: message }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to get response from assistant");
+      }
+
+      const data = await response.json();
+      const assistantMessage = { role: "assistant", content: data.text };
+      setMessages([...newMessages, assistantMessage]);
+    } catch (error) {
+      console.error("Chat API error:", error);
+      toast.error("Sorry, something went wrong. Please try again.");
+      // Optional: Revert optimistic UI update on error
+      setMessages(messages);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -63,44 +93,59 @@ const Chat = () => {
               </div>
             </div>
           ) : (
-            messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
+            <>
+              {messages.map((msg, idx) => (
                 <div
-                  className={`max-w-[70%] rounded-lg p-3 ${
-                    msg.role === "user"
-                      ? "gradient-primary text-white"
-                      : "bg-muted text-foreground"
-                  }`}
+                  key={idx}
+                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
-                  {msg.content}
+                  <div
+                    className={`max-w-[70%] rounded-lg p-3 ${
+                      msg.role === "user"
+                        ? "gradient-primary text-white"
+                        : "bg-muted text-foreground"
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="max-w-[70%] rounded-lg p-3 bg-muted text-foreground">
+                    <div className="flex gap-1 items-center">
+                      <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                      <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                      <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
         <div className="flex gap-2">
           <Input
             placeholder={
-              isAuthenticated
+              isLoading
+                ? "Waiting for response..."
+                : isAuthenticated
                 ? "Type your message..."
                 : "Log in to send messages..."
             }
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-            disabled={!isAuthenticated}
+            onKeyDown={(e) => e.key === "Enter" && !isLoading && handleSendMessage()}
+            disabled={!isAuthenticated || isLoading}
             className="glass-card border-border/50"
           />
           <Button
             onClick={handleSendMessage}
-            disabled={!isAuthenticated || !message.trim()}
+            disabled={!isAuthenticated || !message.trim() || isLoading}
             className="gradient-primary text-white shadow-lg shrink-0"
           >
-            <Send className="h-4 w-4" />
+            <Send className={`h-4 w-4 ${isLoading ? "animate-pulse" : ""}`} />
           </Button>
         </div>
       </GlassCard>
