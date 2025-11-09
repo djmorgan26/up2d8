@@ -2,11 +2,24 @@
 
 **Last Updated**: 2025-11-09
 **Project Type**: Monorepo (Backend API + Azure Functions + Mobile App + Web App)
-**Knowledge Items**: 6 features • 3 components • 3 patterns • 3 decisions
+**Knowledge Items**: 12 features • 4 components • 4 patterns • 3 decisions
 
 ---
 
 ## 🆕 Recent Changes
+
+### 2025-11-09 - Web Search, Swagger Organization, Mobile Responsiveness
+- 🔍 **Added**: Web search grounding to AI chat using Google Search tool → [web-search-grounding.md](./knowledge/features/web-search-grounding.md)
+- 🔄 **Migrated**: From google-generativeai to google-genai library for better tool support → [google-genai-migration.md](./knowledge/patterns/google-genai-migration.md)
+- 📊 **Added**: Sources display in chat UI with clickable links (9-15 sources per query)
+- 📚 **Organized**: Swagger API documentation with 9 category tags → [swagger-api-organization.md](./knowledge/features/swagger-api-organization.md)
+- 📱 **Implemented**: Mobile responsiveness for web app (Safari/Chrome) → [mobile-responsive-web-app.md](./knowledge/features/mobile-responsive-web-app.md)
+- 🎨 **Created**: MobileNav component with shadcn/ui Sheet for drawer navigation → [mobile-nav.md](./knowledge/components/mobile-nav.md)
+- 🔐 **Fixed**: Onboarding authentication (401 error) - token acquisition before API call
+- 🐛 **Fixed**: Chat API 500 errors through library migration and correct Tool syntax
+- 📝 **Updated**: Chat response format to `{"status": "success", "model": "...", "reply": "...", "sources": []}`
+- ⚡ **Optimized**: Mobile performance (reduced blur effects, 44px touch targets)
+- 📐 **Added**: Responsive headers, icons, and spacing across all pages (Dashboard, Feeds, Chat, Settings)
 
 ### 2025-11-09 - RSS Feed Enhancements & Function App Integration
 - ✅ **Added**: LLM-powered RSS feed suggestions with Google Search grounding → [rss-feed-suggestions.md](./knowledge/features/rss-feed-suggestions.md)
@@ -114,23 +127,23 @@
 - [Documentation Style](./preferences/documentation-style.md) - Docs philosophy, formats, examples
 
 ### Knowledge Base (Grows over time)
-- [Features](./knowledge/features/) - **9 documented** - Cross-cutting features
+- [Features](./knowledge/features/) - **12 documented** - Cross-cutting features
 - [Frontend](./knowledge/frontend/) - **1 documented** - Web app components
 - [Backend Features](./knowledge/backend/) - **0 documented** - Backend API features
 - [Functions](./knowledge/functions/) - **0 documented** - Azure Functions features
 - [Mobile Features](./knowledge/mobile/) - **0 documented** - Mobile app features
-- [Components](./knowledge/components/) - **3 documented** - Shared components
-- [Patterns](./knowledge/patterns/) - **3 documented** - Coding patterns
+- [Components](./knowledge/components/) - **4 documented** - Shared components
+- [Patterns](./knowledge/patterns/) - **4 documented** - Coding patterns
 
 ---
 
 ## 📊 Project Stats
 
 - **Monorepo structure**: 4 packages (backend-api, functions, mobile-app, web-app) + shared
-- **Total knowledge files**: 24 (overview, architecture, 4 preferences, 3 decisions, 9 features, 3 components, 3 patterns)
-- **Features documented**: 9
-- **Components documented**: 3
-- **Patterns captured**: 3
+- **Total knowledge files**: 28 (overview, architecture, 4 preferences, 3 decisions, 12 features, 4 components, 4 patterns)
+- **Features documented**: 12
+- **Components documented**: 4
+- **Patterns captured**: 4
 - **Decisions recorded**: 3
 - **Personal preferences**: 4 (coding, errors, testing, docs)
 - **Tech Stack**:
@@ -165,7 +178,10 @@
 
 ## 🗺️ Knowledge Map
 
-### Features (9)
+### Features (12)
+- [Web Search Grounding](./knowledge/features/web-search-grounding.md) - Google Search integration in AI chat with source citations (9-15 per query)
+- [Swagger API Organization](./knowledge/features/swagger-api-organization.md) - API documentation organized with 9 category tags for 24 endpoints
+- [Mobile Responsive Web App](./knowledge/features/mobile-responsive-web-app.md) - Safari/Chrome mobile support with responsive layouts and performance optimizations
 - [RSS Feed Suggestions with AI](./knowledge/features/rss-feed-suggestions.md) - Discover and add new RSS feeds using AI-powered suggestions
 - [Category Standardization for RSS Feeds](./knowledge/features/category-standardization.md) - Standardize categories for RSS feeds to ensure consistency
 - [Function App RSS Scraping Integration](./knowledge/features/function-app-rss-scraping.md) - Integrate RSS feed scraping into the Azure Function App's article discovery process
@@ -176,12 +192,14 @@
 - [AI Topic Suggestions](./knowledge/features/ai-topic-suggestions.md) - Gemini-powered topic discovery integrated into preferences
 - [Feed Search and Categorization](./knowledge/features/feed-search-and-categorization.md) - Real-time feed search and category grouping
 
-### Components (3)
+### Components (4)
+- [MobileNav Component](./knowledge/components/mobile-nav.md) - Drawer navigation for mobile with shadcn/ui Sheet (hamburger menu)
 - [Azure Functions Architecture](./knowledge/components/azure-functions-architecture.md) - Serverless background tasks (6 functions: newsletters, crawling, health monitoring)
 - [Web App Frontend](./knowledge/frontend/web-app-structure.md) - React SPA with Vite, TypeScript, shadcn/ui (6 pages, 49 UI components)
 - [Settings Dialogs](./knowledge/components/settings-dialogs.md) - PreferencesDialog and NotificationsDialog with AI suggestions
 
-### Patterns (3)
+### Patterns (4)
+- [Google Genai Library Migration](./knowledge/patterns/google-genai-migration.md) - Migrate from google-generativeai to google-genai for tool support
 - [API Data Transformation Layer](./knowledge/patterns/api-data-transformation.md) - Transform database schema to frontend contract in API layer
 - [Azure Functions Local Development](./knowledge/patterns/azure-functions-local-dev.md) - Python 3.11 virtual environment + Azurite setup for local testing
 - [Entra ID User Migration](./knowledge/patterns/entra-id-user-migration.md) - Seamless migration from email-based to user_id-based authentication
