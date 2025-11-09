@@ -67,45 +67,51 @@ async def chat(request: ChatRequest, api_key: str = Depends(get_gemini_api_key))
         # Extract sources from grounding metadata
         sources = []
 
-        # Debug: Log the response structure
-        logger.info(f"Response type: {type(response)}")
-        logger.info(f"Response attributes: {dir(response)}")
-        if hasattr(response, 'grounding_metadata'):
-            logger.info(f"Has grounding_metadata: {response.grounding_metadata}")
-            if response.grounding_metadata:
-                logger.info(f"Grounding metadata attributes: {dir(response.grounding_metadata)}")
+        # Debug: Log the full response object as dict
+        try:
+            import json
+            response_dict = response.to_dict() if hasattr(response, 'to_dict') else {}
+            logger.info(f"Full response dict: {json.dumps(response_dict, indent=2, default=str)}")
+        except Exception as e:
+            logger.warning(f"Could not serialize response: {e}")
+            logger.info(f"Response type: {type(response)}")
+            logger.info(f"Response str: {str(response)}")
 
-        # Check if grounding_metadata exists in the response
-        if hasattr(response, 'grounding_metadata') and response.grounding_metadata:
-            # The new API structure uses grounding_supports instead of grounding_chunks
-            if hasattr(response.grounding_metadata, 'grounding_supports'):
-                for support in response.grounding_metadata.grounding_supports:
-                    # Each support may contain grounding_chunk_indices and segment info
-                    if hasattr(support, 'segment') and support.segment:
-                        segment = support.segment
-                        if hasattr(segment, 'text'):
-                            # Also try to get the actual chunk info
-                            if hasattr(response.grounding_metadata, 'grounding_chunks'):
-                                for idx in support.grounding_chunk_indices if hasattr(support, 'grounding_chunk_indices') else []:
-                                    if idx < len(response.grounding_metadata.grounding_chunks):
-                                        chunk = response.grounding_metadata.grounding_chunks[idx]
-                                        if hasattr(chunk, 'web') and chunk.web:
-                                            sources.append({
-                                                "web": {
-                                                    "uri": chunk.web.uri,
-                                                    "title": chunk.web.title if hasattr(chunk.web, 'title') else chunk.web.uri
-                                                }
-                                            })
-            # Fallback: Try accessing grounding_chunks directly
-            elif hasattr(response.grounding_metadata, 'grounding_chunks'):
-                for chunk in response.grounding_metadata.grounding_chunks:
-                    if hasattr(chunk, 'web') and chunk.web:
-                        sources.append({
-                            "web": {
-                                "uri": chunk.web.uri,
-                                "title": chunk.web.title if hasattr(chunk.web, 'title') else chunk.web.uri
-                            }
-                        })
+        # Extract grounding metadata from first candidate (standard structure)
+        try:
+            if response.candidates and len(response.candidates) > 0:
+                candidate = response.candidates[0]
+
+                if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
+                    metadata = candidate.grounding_metadata
+                    logger.info(f"✓ Found grounding_metadata")
+
+                    # Extract sources from grounding_chunks (the main source list)
+                    if hasattr(metadata, 'grounding_chunks') and metadata.grounding_chunks:
+                        logger.info(f"✓ Found {len(metadata.grounding_chunks)} grounding chunks")
+
+                        for chunk in metadata.grounding_chunks:
+                            if hasattr(chunk, 'web') and chunk.web:
+                                web_source = {
+                                    "uri": chunk.web.uri,
+                                    "title": getattr(chunk.web, 'title', chunk.web.uri)
+                                }
+                                sources.append({"web": web_source})
+                                logger.info(f"  - Added source: {web_source['title']}")
+                    else:
+                        logger.info("✗ No grounding_chunks found")
+
+                    # Also log search entry point if available
+                    if hasattr(metadata, 'search_entry_point') and metadata.search_entry_point:
+                        logger.info(f"✓ Search entry point available")
+                else:
+                    logger.info("✗ No grounding_metadata in candidate")
+            else:
+                logger.info("✗ No candidates in response")
+        except Exception as e:
+            logger.error(f"Error extracting sources: {e}", exc_info=True)
+
+        logger.info(f"Final sources count: {len(sources)}")
 
         return {
             "status": "success",
