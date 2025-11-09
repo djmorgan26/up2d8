@@ -36,10 +36,10 @@ async def chat(request: ChatRequest, api_key: str = Depends(get_gemini_api_key))
             system_instruction="You are an AI assistant for UP2D8, a personal news digest and information management platform. Your goal is to help users stay updated and manage their information effectively. Provide concise, relevant, and helpful responses. Focus on news, summaries, and information retrieval. Avoid conversational filler and keep responses professional and to the point.",
         )
 
-        # Generate content with web search grounding (legacy google-generativeai library syntax)
+        # Generate content with web search grounding
         response = model.generate_content(
             request.prompt,
-            tools='google_search_retrieval'
+            tools='google_search'
         )
 
         # Extract sources from grounding metadata
