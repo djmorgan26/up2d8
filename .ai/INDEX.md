@@ -1,12 +1,22 @@
 # AI Knowledge Base Index - UP2D8 Monorepo
 
 **Last Updated**: 2025-11-08
-**Project Type**: Monorepo (Backend API + Azure Functions + Mobile App)
-**Knowledge Items**: 0 features • 0 components • 0 patterns • 2 decisions
+**Project Type**: Monorepo (Backend API + Azure Functions + Mobile App + Web App)
+**Knowledge Items**: 1 feature • 0 components • 0 patterns • 3 decisions
 
 ---
 
 ## 🆕 Recent Changes
+
+### 2025-11-08 - Authentication Implementation
+- ✅ **Added**: Entra ID authentication feature → [entra-id-authentication.md](./knowledge/features/entra-id-authentication.md)
+- 🔐 **Implemented**: Frontend MSAL integration (React) with popup/silent token flow
+- 🔒 **Implemented**: Backend JWT validation (FastAPI) with fastapi-azure-auth
+- 🎯 **Configured**: Single app registration approach for frontend + backend
+- 📝 **Documented**: Comprehensive setup guide (AUTH_SETUP.md) and summary
+- 🔧 **Created**: Custom useAuth hook, AuthProvider, protected route examples
+- ⚙️ **Added**: Example auth component and protected API endpoints
+- 📋 **Recorded**: ADR 003 - Single App Registration decision
 
 ### 2025-11-08 - Monorepo Migration
 - 🏗️ **Migrated**: Transformed up2d8-frontend into full-stack monorepo
@@ -33,7 +43,7 @@
 ### Project Context
 - [Overview](./context/overview.md) - What this project does and why
 - [Architecture](./context/architecture.md) - How the system is structured
-- [Decisions](./context/decisions/) - Architecture Decision Records (ADRs) - **2 recorded**
+- [Decisions](./context/decisions/) - Architecture Decision Records (ADRs) - **3 recorded**
 
 ### 🎨 Personal Preferences (Cross-Project Standards)
 *These apply to all your projects and are referenced, not modified.*
@@ -44,6 +54,7 @@
 - [Documentation Style](./preferences/documentation-style.md) - Docs philosophy, formats, examples
 
 ### Knowledge Base (Grows over time)
+- [Features](./knowledge/features/) - **1 documented** - Cross-cutting features
 - [Backend Features](./knowledge/backend/) - **0 documented** - Backend API features
 - [Functions](./knowledge/functions/) - **0 documented** - Azure Functions features
 - [Mobile Features](./knowledge/mobile/) - **0 documented** - Mobile app features
@@ -54,17 +65,18 @@
 
 ## 📊 Project Stats
 
-- **Monorepo structure**: 3 packages (backend-api, functions, mobile-app) + shared
-- **Total knowledge files**: 8 (overview, architecture, 4 preferences, 2 decisions)
-- **Features documented**: 0
+- **Monorepo structure**: 4 packages (backend-api, functions, mobile-app, web-app) + shared
+- **Total knowledge files**: 10 (overview, architecture, 4 preferences, 3 decisions, 1 feature)
+- **Features documented**: 1
 - **Components documented**: 0
 - **Patterns captured**: 0
-- **Decisions recorded**: 2
+- **Decisions recorded**: 3
 - **Personal preferences**: 4 (coding, errors, testing, docs)
 - **Tech Stack**:
-  - Backend: FastAPI, MongoDB, Azure Key Vault
+  - Backend: FastAPI, MongoDB, Azure Key Vault, Entra ID Auth
   - Functions: Azure Functions (Python), LangChain, Playwright
   - Mobile: React Native 0.82.1, TypeScript, React Navigation 7.x
+  - Web: React, Vite, TypeScript, MSAL, shadcn/ui
 - **Last migration**: Monorepo consolidation from 3 repositories
 
 ---
@@ -92,8 +104,8 @@
 
 ## 🗺️ Knowledge Map
 
-### Features (0)
-*No features documented yet. Use `/capture` after building features to document them.*
+### Features (1)
+- [Entra ID Authentication](./knowledge/features/entra-id-authentication.md) - Single sign-on with Microsoft Entra ID for web and API
 
 ### Components (0)
 *No components documented yet. Components will be captured as you build.*
@@ -101,7 +113,8 @@
 ### Patterns (0)
 *No patterns documented yet. Patterns will emerge as you build features.*
 
-### Decisions (2)
+### Decisions (3)
+- ✅ [003: Single App Registration](./context/decisions/003-single-app-registration.md) - Use one Entra ID app for frontend and backend
 - ✅ [002: Focus on React Native](./context/decisions/002-focus-on-react-native.md) - Repository restructure to mobile-only
 - ✅ [001: Personal Preferences System](./context/decisions/001-personal-preferences-system.md) - Cross-project standards approach
 
