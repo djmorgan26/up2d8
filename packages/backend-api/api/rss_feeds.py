@@ -6,7 +6,7 @@ from dependencies import get_db_client
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, HttpUrl
 
-router = APIRouter()
+router = APIRouter(tags=["RSS Feeds"])
 
 
 class RssFeedCreate(BaseModel):

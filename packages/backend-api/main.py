@@ -27,7 +27,23 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="UP2D8 Backend API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="UP2D8 Backend API",
+    version="1.0.0",
+    description="Personal news digest and information management platform API",
+    lifespan=lifespan,
+    openapi_tags=[
+        {"name": "System", "description": "System health and monitoring endpoints"},
+        {"name": "Authentication", "description": "User authentication and authorization"},
+        {"name": "Users", "description": "User management and preferences"},
+        {"name": "Articles", "description": "Article content management"},
+        {"name": "RSS Feeds", "description": "RSS feed subscriptions and management"},
+        {"name": "Topics", "description": "AI-powered topic discovery and suggestions"},
+        {"name": "Chat", "description": "AI chat sessions and message history"},
+        {"name": "Analytics", "description": "Event tracking and analytics"},
+        {"name": "Feedback", "description": "User feedback collection"},
+    ],
+)
 
 # CORS configuration for mobile app
 app.add_middleware(

@@ -5,7 +5,7 @@ from dependencies import get_gemini_api_key
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
-router = APIRouter()
+router = APIRouter(tags=["Topics"])
 logger = logging.getLogger(__name__)
 
 

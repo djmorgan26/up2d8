@@ -5,7 +5,7 @@ from dependencies import get_db_client  # Import the new dependency
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-router = APIRouter()
+router = APIRouter(tags=["Users"])
 
 
 class UserCreate(BaseModel):

@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from dependencies import get_db_client
 from fastapi import APIRouter, Depends, status
 
-router = APIRouter()
+router = APIRouter(tags=["System"])
 
 
 @router.get("/api/health", status_code=status.HTTP_200_OK)

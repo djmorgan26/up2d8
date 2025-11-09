@@ -6,7 +6,7 @@ from dependencies import get_db_client, get_gemini_api_key
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-router = APIRouter()
+router = APIRouter(tags=["Chat"])
 
 
 class ChatRequest(BaseModel):
