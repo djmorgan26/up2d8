@@ -35,9 +35,25 @@ async def chat(request: ChatRequest, api_key: str = Depends(get_gemini_api_key))
         # Initialize the new google-genai client
         client = genai.Client(api_key=api_key)
 
+        # System instruction for UP2D8 assistant
+        system_instruction = """
+        You are UP2D8, an AI assistant for a personal news digest and information management platform.
+
+        Your role:
+        - Help users stay updated with accurate, recent information using Google Search grounding.
+        - Summarize clearly and concisely.
+        - Maintain a professional, helpful, and neutral tone.
+        - Always cite grounded sources when applicable.
+        - Avoid speculation or filler.
+
+        Response format:
+        - Start with a concise answer or summary.
+        - Include "Sources:" if grounded data is referenced.
+        """
+
         # Configure Google Search grounding tool
         config = types.GenerateContentConfig(
-            system_instruction="You are an AI assistant for UP2D8, a personal news digest and information management platform. Your goal is to help users stay updated and manage their information effectively. Provide concise, relevant, and helpful responses. Focus on news, summaries, and information retrieval. Avoid conversational filler and keep responses professional and to the point.",
+            system_instruction=system_instruction,
             tools=[types.Tool(google_search=types.GoogleSearch())]
         )
 
@@ -91,7 +107,12 @@ async def chat(request: ChatRequest, api_key: str = Depends(get_gemini_api_key))
                             }
                         })
 
-        return {"text": response.text, "sources": sources}
+        return {
+            "status": "success",
+            "model": "gemini-2.5-flash",
+            "reply": response.text.strip(),
+            "sources": sources
+        }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Gemini API error: {e}"

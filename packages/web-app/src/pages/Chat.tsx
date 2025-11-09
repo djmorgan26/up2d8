@@ -52,7 +52,7 @@ const Chat = () => {
       }
 
       const data = await response.json();
-      const assistantMessage = { role: "assistant", content: data.text };
+      const assistantMessage = { role: "assistant", content: data.reply || data.text };
       setMessages([...newMessages, assistantMessage]);
     } catch (error) {
       console.error("Chat API error:", error);
