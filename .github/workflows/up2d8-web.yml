@@ -1,6 +1,15 @@
 name: Deploy Static Web App
 
 on:
+  # Automatic deployment when PRs are merged into main
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/web-app/**'
+      - '.github/workflows/up2d8-web.yml'
+
+  # Manual deployment option
   workflow_dispatch:
     inputs:
       environment:
