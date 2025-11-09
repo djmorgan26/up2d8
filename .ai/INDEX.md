@@ -2,11 +2,22 @@
 
 **Last Updated**: 2025-11-08
 **Project Type**: Monorepo (Backend API + Azure Functions + Mobile App + Web App)
-**Knowledge Items**: 1 feature • 2 components • 1 pattern • 3 decisions
+**Knowledge Items**: 2 features • 2 components • 1 pattern • 3 decisions
 
 ---
 
 ## 🆕 Recent Changes
+
+### 2025-11-08 - AI Chat Integration
+- ✅ **Added**: AI chat feature with Google Gemini integration → [ai-chat-integration.md](./knowledge/features/ai-chat-integration.md)
+- 🤖 **Integrated**: Google Gemini 2.5 Flash model for chat responses
+- 🎨 **Implemented**: Typing indicator with bouncing dots animation
+- ⏸️ **Added**: Loading states (disabled input, pulsing send button, placeholder change)
+- 🔧 **Fixed**: Vite proxy configuration for /api routing to backend (port 8000)
+- 🔄 **Updated**: Backend from deprecated gemini-pro to gemini-2.5-flash
+- 🔐 **Secured**: Azure AD Bearer token authentication for chat endpoint
+- 🎯 **Optimized**: Optimistic UI updates with error rollback
+- 📝 **Documented**: 4 key decisions, common issues, future ideas
 
 ### 2025-11-08 - Azure Functions Local Development
 - ✅ **Added**: Azure Functions local dev setup pattern → [azure-functions-local-dev.md](./knowledge/patterns/azure-functions-local-dev.md)
@@ -81,8 +92,8 @@
 ## 📊 Project Stats
 
 - **Monorepo structure**: 4 packages (backend-api, functions, mobile-app, web-app) + shared
-- **Total knowledge files**: 13 (overview, architecture, 4 preferences, 3 decisions, 1 feature, 2 components, 1 pattern)
-- **Features documented**: 1
+- **Total knowledge files**: 14 (overview, architecture, 4 preferences, 3 decisions, 2 features, 2 components, 1 pattern)
+- **Features documented**: 2
 - **Components documented**: 2
 - **Patterns captured**: 1
 - **Decisions recorded**: 3
@@ -119,7 +130,8 @@
 
 ## 🗺️ Knowledge Map
 
-### Features (1)
+### Features (2)
+- [AI Chat Integration](./knowledge/features/ai-chat-integration.md) - Interactive chat with Google Gemini AI (2.5-flash) via web app
 - [Entra ID Authentication](./knowledge/features/entra-id-authentication.md) - Single sign-on with Microsoft Entra ID for web and API
 
 ### Components (2)
