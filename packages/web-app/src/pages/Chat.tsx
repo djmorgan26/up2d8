@@ -9,7 +9,13 @@ import { toast } from "sonner";
 
 const Chat = () => {
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([]);
+  const [messages, setMessages] = useState<
+    Array<{
+      role: string;
+      content: string;
+      sources?: Array<{ web: { uri: string; title: string } }>;
+    }>
+  >([]);
   const [isLoading, setIsLoading] = useState(false);
   const { instance, accounts } = useMsal();
   const isAuthenticated = accounts.length > 0;
@@ -52,7 +58,11 @@ const Chat = () => {
       }
 
       const data = await response.json();
-      const assistantMessage = { role: "assistant", content: data.reply || data.text };
+      const assistantMessage = {
+        role: "assistant",
+        content: data.reply || data.text,
+        sources: data.sources,
+      };
       setMessages([...newMessages, assistantMessage]);
     } catch (error) {
       console.error("Chat API error:", error);
@@ -107,6 +117,26 @@ const Chat = () => {
                     }`}
                   >
                     {msg.content}
+                    {msg.sources && msg.sources.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-border/50">
+                        <p className="text-xs font-semibold text-muted-foreground mb-1">Sources:</p>
+                        <div className="space-y-1">
+                          {msg.sources.map((source, sourceIdx) => (
+                            <a
+                              key={sourceIdx}
+                              href={source.web.uri}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-xs text-primary hover:underline"
+                              title={source.web.title} // Tooltip on hover
+                            >
+                              <MessageSquare className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{source.web.title}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
