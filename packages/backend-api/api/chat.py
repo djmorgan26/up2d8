@@ -1,12 +1,15 @@
 import uuid
+import logging
 from datetime import UTC, datetime
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from dependencies import get_db_client, get_gemini_api_key
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 router = APIRouter(tags=["Chat"])
+logger = logging.getLogger(__name__)
 
 
 class ChatRequest(BaseModel):
@@ -25,17 +28,70 @@ class MessageContent(BaseModel):
 @router.post("/api/chat", status_code=status.HTTP_200_OK)
 async def chat(request: ChatRequest, api_key: str = Depends(get_gemini_api_key)):
     """
-    Send a chat message to the AI assistant.
-    Note: Web search grounding requires migrating to google-genai library.
+    Send a chat message to the AI assistant with Google Search grounding.
+    The AI will search the web for current information when needed.
     """
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(
-            "gemini-2.5-flash",
+        # Initialize the new google-genai client
+        client = genai.Client(api_key=api_key)
+
+        # Configure Google Search grounding tool
+        config = types.GenerateContentConfig(
             system_instruction="You are an AI assistant for UP2D8, a personal news digest and information management platform. Your goal is to help users stay updated and manage their information effectively. Provide concise, relevant, and helpful responses. Focus on news, summaries, and information retrieval. Avoid conversational filler and keep responses professional and to the point.",
+            tools=[types.Tool(google_search=types.GoogleSearch())]
         )
-        response = model.generate_content(request.prompt)
-        return {"text": response.text, "sources": []}
+
+        # Generate content with web search grounding
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=request.prompt,
+            config=config
+        )
+
+        # Extract sources from grounding metadata
+        sources = []
+
+        # Debug: Log the response structure
+        logger.info(f"Response type: {type(response)}")
+        logger.info(f"Response attributes: {dir(response)}")
+        if hasattr(response, 'grounding_metadata'):
+            logger.info(f"Has grounding_metadata: {response.grounding_metadata}")
+            if response.grounding_metadata:
+                logger.info(f"Grounding metadata attributes: {dir(response.grounding_metadata)}")
+
+        # Check if grounding_metadata exists in the response
+        if hasattr(response, 'grounding_metadata') and response.grounding_metadata:
+            # The new API structure uses grounding_supports instead of grounding_chunks
+            if hasattr(response.grounding_metadata, 'grounding_supports'):
+                for support in response.grounding_metadata.grounding_supports:
+                    # Each support may contain grounding_chunk_indices and segment info
+                    if hasattr(support, 'segment') and support.segment:
+                        segment = support.segment
+                        if hasattr(segment, 'text'):
+                            # Also try to get the actual chunk info
+                            if hasattr(response.grounding_metadata, 'grounding_chunks'):
+                                for idx in support.grounding_chunk_indices if hasattr(support, 'grounding_chunk_indices') else []:
+                                    if idx < len(response.grounding_metadata.grounding_chunks):
+                                        chunk = response.grounding_metadata.grounding_chunks[idx]
+                                        if hasattr(chunk, 'web') and chunk.web:
+                                            sources.append({
+                                                "web": {
+                                                    "uri": chunk.web.uri,
+                                                    "title": chunk.web.title if hasattr(chunk.web, 'title') else chunk.web.uri
+                                                }
+                                            })
+            # Fallback: Try accessing grounding_chunks directly
+            elif hasattr(response.grounding_metadata, 'grounding_chunks'):
+                for chunk in response.grounding_metadata.grounding_chunks:
+                    if hasattr(chunk, 'web') and chunk.web:
+                        sources.append({
+                            "web": {
+                                "uri": chunk.web.uri,
+                                "title": chunk.web.title if hasattr(chunk.web, 'title') else chunk.web.uri
+                            }
+                        })
+
+        return {"text": response.text, "sources": sources}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Gemini API error: {e}"

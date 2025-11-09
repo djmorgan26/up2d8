@@ -1,7 +1,7 @@
 fastapi[all]
 uvicorn
 pymongo
-google-generativeai
+google-genai
 azure-identity
 azure-keyvault-secrets
 python-dotenv

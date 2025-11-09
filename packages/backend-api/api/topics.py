@@ -1,6 +1,6 @@
 import logging
 
-import google.generativeai as genai
+from google import genai
 from dependencies import get_gemini_api_key
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -28,8 +28,7 @@ async def suggest_topics(request: TopicSuggestRequest):
     """
     try:
         gemini_key = get_gemini_api_key()
-        genai.configure(api_key=gemini_key)
-        model = genai.GenerativeModel("gemini-2.0-flash-exp")
+        client = genai.Client(api_key=gemini_key)
 
         if request.query:
             # User provided a search query
@@ -47,7 +46,10 @@ async def suggest_topics(request: TopicSuggestRequest):
             prompt = """Suggest 8 popular news topics that most people would be interested in following.
             Return ONLY the topic names as a comma-separated list, no explanations or numbering."""
 
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-exp",
+            contents=prompt
+        )
         suggestions_text = response.text.strip()
 
         # Parse comma-separated suggestions
