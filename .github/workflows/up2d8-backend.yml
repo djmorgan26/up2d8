@@ -80,55 +80,9 @@ jobs:
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")
           if [ "$HTTP_STATUS" -eq 200 ]; then
             echo "✅ Backend API deployment successful! Health check passed."
+            echo "📋 Health check: $HEALTH_URL"
+            echo "📚 Swagger docs: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/docs"
           else
             echo "❌ Backend API health check failed with status: $HTTP_STATUS"
             exit 1
           fi
-
-      - name: Send success notification
-        if: success()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.NOTIFICATION_EMAIL }}
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '✅ Backend API Deployment Successful - ${{ github.repository }}'
-          body: |
-            Backend API deployment completed successfully!
-
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref_name }}
-            Commit: ${{ github.sha }}
-            Workflow: ${{ github.workflow }}
-            Triggered by: ${{ github.actor }}
-
-            Health check: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/api/health
-            Swagger docs: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/docs
-
-            View run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          to: ${{ secrets.NOTIFICATION_EMAIL }}
-          from: UP2D8 Deployments
-
-      - name: Send failure notification
-        if: failure()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.NOTIFICATION_EMAIL }}
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: '❌ Backend API Deployment Failed - ${{ github.repository }}'
-          body: |
-            Backend API deployment failed!
-
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref_name }}
-            Commit: ${{ github.sha }}
-            Workflow: ${{ github.workflow }}
-            Triggered by: ${{ github.actor }}
-
-            Please check the logs for details:
-            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          to: ${{ secrets.NOTIFICATION_EMAIL }}
-          from: UP2D8 Deployments

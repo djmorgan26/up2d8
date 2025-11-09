@@ -19,7 +19,30 @@ You already have these Azure resources created:
 
 ## Phase 1: Azure Portal Configuration
 
-### 1.1 Enable Managed Identities & Key Vault Access
+### Option A: Automated Setup (Recommended)
+
+Run the automated configuration script:
+
+```bash
+cd /Users/davidmorgan/Documents/Repositories/up2d8
+./scripts/setup-azure-config.sh
+```
+
+This script will automatically:
+- ✅ Configure all environment variables for Backend API, Functions, and Static Web App
+- ✅ Enable Managed Identities for Backend API and Function App
+- ✅ Grant Key Vault access to both services
+- ✅ Configure CORS for Backend API
+- ✅ Set correct startup command for Backend API
+
+**Skip to Phase 1.2 after running the script.**
+
+---
+
+### Option B: Manual Setup (If script doesn't work)
+
+<details>
+<summary>Click to expand manual setup instructions</summary>
 
 #### Backend API Managed Identity
 1. Navigate to: Azure Portal → App Services → `up2d8`
@@ -44,16 +67,11 @@ You already have these Azure resources created:
    - Select it → **Next** → **Next** → **Create**
 5. **Repeat steps 2-4** for `up2d8-function-app` (Function App)
 
-**Result**: Both services can now read secrets from Key Vault using Managed Identity.
-
----
-
-### 1.2 Configure Backend API (App Service)
+#### Configure Backend API (App Service)
 
 Navigate to: Azure Portal → App Services → `up2d8` → Configuration
 
-#### Application Settings
-Click **+ New application setting** for each:
+**Application Settings** - Click **+ New application setting** for each:
 
 | Name | Value |
 |------|-------|
@@ -64,57 +82,44 @@ Click **+ New application setting** for each:
 | `MONGODB_DATABASE` | `up2d8` |
 | `SCM_DO_BUILD_DURING_DEPLOYMENT` | `true` |
 
-Click **Save** → **Continue**
-
-#### CORS Settings
+**CORS Settings**:
 1. Same page → Left menu → **CORS**
-2. **Allowed Origins** → Add each:
-   - `http://localhost:5173` (for local development)
+2. **Remove** `*` if present (wildcard)
+3. **Add** these origins:
+   - `http://localhost:5173`
    - `http://localhost:8080`
-   - `https://gray-wave-00bdfc60f.3.azurestaticapps.net` (production)
-3. **Enable Access-Control-Allow-Credentials**: ☑️ **Yes**
-4. Click **Save**
+   - `https://gray-wave-00bdfc60f.3.azurestaticapps.net`
+4. **Enable Access-Control-Allow-Credentials**: ☑️ **Yes**
+5. Click **Save**
 
-#### Startup Command (Optional - improves performance)
+**Startup Command**:
 1. Same page → **General settings** tab
-2. **Startup Command**:
-   ```bash
-   python -m uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
-   ```
+2. **Startup Command**: `python -m uvicorn main:app --host 0.0.0.0 --port 8000`
 3. Click **Save**
 
----
-
-### 1.3 Configure Function App
+#### Configure Function App
 
 Navigate to: Azure Portal → Function App → `up2d8-function-app` → Configuration
 
-#### Application Settings
-Click **+ New application setting** for each:
+**Application Settings** - Click **+ New application setting** for each:
 
 | Name | Value |
 |------|-------|
-| `FUNCTIONS_WORKER_RUNTIME` | `python` |
 | `KEY_VAULT_URI` | `https://personal-key-vault1.vault.azure.net/` |
 | `BACKEND_API_URL` | `https://up2d8.azurewebsites.net` |
+| `MONGODB_DATABASE` | `up2d8` |
 | `BREVO_SMTP_HOST` | `smtp-relay.brevo.com` |
 | `BREVO_SMTP_PORT` | `587` |
 | `BREVO_SMTP_USER` | `9a9964001@smtp-brevo.com` |
 | `SENDER_EMAIL` | `davidjmorgan26@gmail.com` |
-| `MONGODB_DATABASE` | `up2d8` |
 
 Click **Save** → **Continue**
 
-**Note**: `AzureWebJobsStorage` should already be configured automatically by Azure.
-
----
-
-### 1.4 Configure Static Web App
+#### Configure Static Web App
 
 Navigate to: Azure Portal → Static Web Apps → `up2d8-web` → Configuration
 
-#### Application Settings
-Click **Add** for each:
+**Application Settings** - Click **Add** for each:
 
 | Name | Value |
 |------|-------|
@@ -125,9 +130,11 @@ Click **Add** for each:
 
 Click **Save**
 
+</details>
+
 ---
 
-### 1.5 Update App Registration (Entra ID)
+### 1.2 Update App Registration (Entra ID)
 
 Navigate to: Azure Portal → Microsoft Entra ID → App registrations → `up2d8` (or search for Client ID: `2b5f5cca-a081-43bc-9ac9-8fdfd5ca0d97`)
 
@@ -175,19 +182,7 @@ Navigate to: GitHub → Your Repository → **Settings** → **Secrets and varia
    - Name: `AZURE_STATIC_WEB_APPS_API_TOKEN`
    - Value: [Paste token]
 
-#### 4. Email Notification Secrets (Optional but recommended)
-1. In GitHub → **New repository secret**:
-   - Name: `NOTIFICATION_EMAIL`
-   - Value: `your-email@gmail.com` (where you want deployment notifications)
-
-2. **If using Gmail**:
-   - Go to: Google Account → Security → 2-Step Verification → App passwords
-   - Generate new app password for "GitHub Actions"
-   - In GitHub → **New repository secret**:
-     - Name: `GMAIL_APP_PASSWORD`
-     - Value: [16-character app password]
-
-**Alternative email providers**: Update the SMTP settings in workflow files if not using Gmail.
+**Note**: Email notifications are not needed - GitHub will notify you through the Actions UI and any GitHub app you have configured.
 
 ---
 
