@@ -1,7 +1,7 @@
 azure-functions
 pymongo
 feedparser
-google-generativeai
+google-generativeai==0.4.1
 azure-identity
 azure-keyvault-secrets
 structlog
@@ -9,9 +9,9 @@ python-dotenv
 markdown
 pytest
 azure-storage-queue
-langchain
-langchain-community
-langchain-google-genai
+langchain==0.1.20
+langchain-community==0.0.38
+langchain-google-genai==0.0.11
 playwright
 beautifulsoup4
 lxml
