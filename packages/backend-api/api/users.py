@@ -68,8 +68,20 @@ async def create_user(
 
 
 @router.put("/api/users/{user_id}", status_code=status.HTTP_200_OK)
-async def update_user(user_id: str, user_update: UserUpdate, db=Depends(get_db_client)):
+async def update_user(
+    user_id: str,
+    user_update: UserUpdate,
+    db=Depends(get_db_client),
+    user: User = Depends(get_current_user),
+):
+    """
+    Update user preferences and topics.
+    Note: user_id parameter is kept for backwards compatibility but ignored.
+    The authenticated user from the token is always used.
+    """
     users_collection = db.users
+    # Use the authenticated user's ID from the token, not the URL parameter
+    authenticated_user_id = user.sub
 
     update_fields = {}
     if user_update.topics is not None:
@@ -83,22 +95,32 @@ async def update_user(user_id: str, user_update: UserUpdate, db=Depends(get_db_c
         )
 
     result = users_collection.update_one(
-        {"user_id": user_id}, {"$set": update_fields, "$currentDate": {"updated_at": True}}
+        {"user_id": authenticated_user_id},
+        {"$set": update_fields, "$currentDate": {"updated_at": True}},
     )
 
     if result.matched_count == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
 
-    return {"message": "Preferences updated."}
+    return {"message": "Preferences updated.", "user_id": authenticated_user_id}
 
 
 @router.get("/api/users/{user_id}", status_code=status.HTTP_200_OK)
-async def get_user(user_id: str, db=Depends(get_db_client)):
+async def get_user(
+    user_id: str, db=Depends(get_db_client), user: User = Depends(get_current_user)
+):
+    """
+    Get user information.
+    Note: user_id parameter is kept for backwards compatibility but ignored.
+    The authenticated user from the token is always used.
+    """
     users_collection = db.users
-    user = users_collection.find_one({"user_id": user_id}, {"_id": 0})
-    if not user:
+    # Use the authenticated user's ID from the token, not the URL parameter
+    authenticated_user_id = user.sub
+    user_data = users_collection.find_one({"user_id": authenticated_user_id}, {"_id": 0})
+    if not user_data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
-    return user
+    return user_data
 
 
 @router.delete("/api/users/{user_id}", status_code=status.HTTP_200_OK)

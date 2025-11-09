@@ -32,7 +32,7 @@ export const MobileNav = ({ open, onOpenChange }: MobileNavProps) => {
   const handleLogin = async () => {
     try {
       await instance.loginPopup(loginRequest);
-      navigate("/onboarding");
+      // AuthInitializer will handle checking if user needs onboarding
       onOpenChange(false);
     } catch (error) {
       console.error("Login failed:", error);

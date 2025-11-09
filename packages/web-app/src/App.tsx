@@ -7,6 +7,7 @@ import { MsalProvider } from "@azure/msal-react";
 import { PublicClientApplication } from "@azure/msal-browser";
 import { msalConfig } from "./config/msalConfig";
 import { Layout } from "./components/Layout";
+import { AuthInitializer } from "./components/AuthInitializer";
 import Dashboard from "./pages/Dashboard";
 import Feeds from "./pages/Feeds";
 import Chat from "./pages/Chat";
@@ -36,6 +37,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <AuthInitializer />
           <Routes>
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/" element={<Layout><Dashboard /></Layout>} />

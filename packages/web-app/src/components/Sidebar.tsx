@@ -24,7 +24,7 @@ export const Sidebar = ({ className = "" }: SidebarProps) => {
   const handleLogin = async () => {
     try {
       await instance.loginPopup(loginRequest);
-      navigate("/onboarding");
+      // AuthInitializer will handle checking if user needs onboarding
     } catch (error) {
       console.error("Login failed:", error);
     }
