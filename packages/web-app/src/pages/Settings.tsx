@@ -24,6 +24,14 @@ const Settings = () => {
     toast.success(`Theme changed to ${newTheme} mode`);
   };
 
+  const handleEditPreferences = () => {
+    toast.info("Preferences editor coming soon!");
+  };
+
+  const handleConfigureNotifications = () => {
+    toast.info("Notification settings coming soon!");
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-3">
@@ -72,7 +80,11 @@ const Settings = () => {
               <p className="text-sm text-muted-foreground mb-4">
                 Customize your news feed preferences
               </p>
-              <Button variant="outline" className="glass-card border-border/50">
+              <Button
+                variant="outline"
+                className="glass-card border-border/50"
+                onClick={handleEditPreferences}
+              >
                 Edit Preferences
               </Button>
             </div>
@@ -84,7 +96,11 @@ const Settings = () => {
               <p className="text-sm text-muted-foreground mb-4">
                 Manage how you receive updates
               </p>
-              <Button variant="outline" className="glass-card border-border/50">
+              <Button
+                variant="outline"
+                className="glass-card border-border/50"
+                onClick={handleConfigureNotifications}
+              >
                 Configure Notifications
               </Button>
             </div>

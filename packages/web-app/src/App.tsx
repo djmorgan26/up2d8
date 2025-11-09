@@ -13,11 +13,23 @@ import Chat from "./pages/Chat";
 import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
+import { useEffect } from "react";
 
 const queryClient = new QueryClient();
 const msalInstance = new PublicClientApplication(msalConfig);
 
-const App = () => (
+const App = () => {
+  // Initialize theme on app load
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    if (savedTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
+
+  return (
   <MsalProvider instance={msalInstance}>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -36,6 +48,7 @@ const App = () => (
       </TooltipProvider>
     </QueryClientProvider>
   </MsalProvider>
-);
+  );
+};
 
 export default App;

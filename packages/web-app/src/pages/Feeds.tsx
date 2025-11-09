@@ -27,7 +27,7 @@ const Feeds = () => {
   const fetchFeeds = async () => {
     try {
       const response = await getRSSFeeds();
-      setFeeds(response.data);
+      setFeeds(response.data.data);
     } catch (error) {
       console.error("Failed to fetch feeds:", error);
       toast.error("Failed to load feeds");
