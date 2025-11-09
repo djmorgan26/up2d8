@@ -40,7 +40,7 @@ export const Sidebar = () => {
   return (
     <aside className="glass-sidebar w-64 min-h-screen p-6 flex flex-col animate-slide-in">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold gradient-text">up2d8</h1>
+        <h1 className="text-3xl font-bold gradient-text">UP2D8</h1>
         <p className="text-sm text-muted-foreground mt-1">Your personalized news digest</p>
       </div>
 

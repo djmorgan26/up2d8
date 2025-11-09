@@ -3,6 +3,7 @@ from pydantic import BaseModel, HttpUrl
 import uuid
 from datetime import datetime, UTC
 from dependencies import get_db_client
+import feedparser
 
 router = APIRouter()
 
@@ -13,14 +14,27 @@ class RssFeedCreate(BaseModel):
 class RssFeedUpdate(BaseModel):
     url: HttpUrl | None = None
     category: str | None = None
+    title: str | None = None
 
 @router.post("/api/rss_feeds", status_code=status.HTTP_201_CREATED)
 async def create_rss_feed(feed: RssFeedCreate, db=Depends(get_db_client)):
     rss_feeds_collection = db.rss_feeds
     feed_id = str(uuid.uuid4())
+
+    # Fetch the RSS feed to get the title
+    feed_title = "Untitled Feed"
+    try:
+        parsed_feed = feedparser.parse(str(feed.url))
+        if parsed_feed.feed and hasattr(parsed_feed.feed, 'title'):
+            feed_title = parsed_feed.feed.title
+    except Exception as e:
+        # If fetching fails, use the default title
+        print(f"Failed to fetch feed title for {feed.url}: {e}")
+
     new_feed = {
         "id": feed_id,
         "url": str(feed.url),
+        "title": feed_title,
         "category": feed.category,
         "created_at": datetime.now(UTC)
     }
@@ -44,12 +58,14 @@ async def get_rss_feed(feed_id: str, db=Depends(get_db_client)):
 @router.put("/api/rss_feeds/{feed_id}", status_code=status.HTTP_200_OK)
 async def update_rss_feed(feed_id: str, feed_update: RssFeedUpdate, db=Depends(get_db_client)):
     rss_feeds_collection = db.rss_feeds
-    
+
     update_fields = {}
     if feed_update.url is not None:
         update_fields["url"] = str(feed_update.url)
     if feed_update.category is not None:
         update_fields["category"] = feed_update.category
+    if feed_update.title is not None:
+        update_fields["title"] = feed_update.title
 
     if not update_fields:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update provided.")
