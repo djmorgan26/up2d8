@@ -24,14 +24,37 @@ class MessageContent(BaseModel):
 
 @router.post("/api/chat", status_code=status.HTTP_200_OK)
 async def chat(request: ChatRequest, api_key: str = Depends(get_gemini_api_key)):
+    """
+    Send a chat message to the AI assistant with web search grounding.
+    The AI will search the web for current information when needed.
+    """
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel(
             "gemini-2.5-flash",
             system_instruction="You are an AI assistant for UP2D8, a personal news digest and information management platform. Your goal is to help users stay updated and manage their information effectively. Provide concise, relevant, and helpful responses. Focus on news, summaries, and information retrieval. Avoid conversational filler and keep responses professional and to the point.",
         )
-        response = model.generate_content(request.prompt)
-        return {"text": response.text, "sources": []}
+
+        # Enable web search grounding for real-time information
+        response = model.generate_content(
+            request.prompt,
+            tools="google_search_retrieval"
+        )
+
+        # Extract sources from grounding metadata
+        sources = []
+        if hasattr(response, 'grounding_metadata') and response.grounding_metadata:
+            if hasattr(response.grounding_metadata, 'grounding_chunks'):
+                for chunk in response.grounding_metadata.grounding_chunks:
+                    if hasattr(chunk, 'web') and chunk.web:
+                        sources.append({
+                            "web": {
+                                "uri": chunk.web.uri,
+                                "title": chunk.web.title if hasattr(chunk.web, 'title') else chunk.web.uri
+                            }
+                        })
+
+        return {"text": response.text, "sources": sources}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Gemini API error: {e}"
