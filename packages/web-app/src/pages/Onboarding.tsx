@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useMsal } from "@azure/msal-react";
-import { api } from "@/lib/api";
+import { api, setAuthToken } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 
 const topics = [
@@ -24,7 +24,7 @@ const Onboarding = () => {
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
 
   const toggleTopic = (topicId: string) => {
     setSelectedTopics((prev) =>
@@ -47,9 +47,16 @@ const Onboarding = () => {
 
     setIsSubmitting(true);
     try {
+      // Get auth token and set it on the API client
+      const token = await getAccessToken();
+      if (!token) {
+        toast.error("Authentication failed. Please log in again.");
+        return;
+      }
+      setAuthToken(token);
+
       // Create or update user with selected topics
       await api.post("/users", {
-        email: user.username,
         topics: selectedTopics,
       });
 
