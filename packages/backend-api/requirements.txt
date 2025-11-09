@@ -7,3 +7,6 @@ azure-keyvault-secrets
 python-dotenv
 pytest
 httpx
+fastapi-azure-auth
+python-jose[cryptography]
+pyjwt[crypto]

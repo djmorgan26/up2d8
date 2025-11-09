@@ -1,0 +1,35 @@
+import axios from "axios";
+
+const API_BASE_URL = "http://localhost:8000/api";
+
+export const api = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+export const setAuthToken = (token: string | null) => {
+  if (token) {
+    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common["Authorization"];
+  }
+};
+
+// Public endpoints
+export const getArticles = () => api.get("/articles");
+export const getRSSFeeds = () => api.get("/rss_feeds");
+
+// Protected endpoints
+export const addRSSFeed = (url: string) => api.post("/rss_feeds", { url });
+export const deleteRSSFeed = (feedId: string) => api.delete(`/rss_feeds/${feedId}`);
+
+export const getUser = (userId: string) => api.get(`/users/${userId}`);
+export const updateUser = (userId: string, data: any) => api.put(`/users/${userId}`, data);
+
+export const sendChatMessage = (sessionId: string, message: string) =>
+  api.post(`/sessions/${sessionId}/messages`, { message });
+
+export const getUserSessions = (userId: string) => api.get(`/users/${userId}/sessions`);
+export const getSessionMessages = (sessionId: string) => api.get(`/sessions/${sessionId}/messages`);
+
+// Auth endpoint for post-login processing
+export const handleLogin = (userProfile: any) => api.post("/auth/login", userProfile);
