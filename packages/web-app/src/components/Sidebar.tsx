@@ -11,7 +11,11 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-export const Sidebar = () => {
+interface SidebarProps {
+  className?: string;
+}
+
+export const Sidebar = ({ className = "" }: SidebarProps) => {
   const { instance, accounts } = useMsal();
   const navigate = useNavigate();
   const isAuthenticated = accounts.length > 0;
@@ -38,7 +42,7 @@ export const Sidebar = () => {
   ];
 
   return (
-    <aside className="glass-sidebar w-64 min-h-screen p-6 flex flex-col animate-slide-in">
+    <aside className={`glass-sidebar w-64 min-h-screen p-6 flex flex-col animate-slide-in ${className}`}>
       <div className="mb-8">
         <h1 className="text-3xl font-bold gradient-text">UP2D8</h1>
         <p className="text-sm text-muted-foreground mt-1">Your personalized news digest</p>

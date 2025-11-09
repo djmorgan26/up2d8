@@ -108,14 +108,14 @@ const Feeds = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
-            <Rss className="h-6 w-6 text-white" />
+          <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
+            <Rss className="h-5 w-5 md:h-6 md:w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">RSS Feeds</h1>
-            <p className="text-muted-foreground">Manage your content sources</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">RSS Feeds</h1>
+            <p className="text-sm text-muted-foreground hidden md:block">Manage your content sources</p>
           </div>
         </div>
 

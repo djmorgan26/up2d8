@@ -68,12 +68,12 @@ const Settings = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-3">
-        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
-          <SettingsIcon className="h-6 w-6 text-white" />
+        <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
+          <SettingsIcon className="h-5 w-5 md:h-6 md:w-6 text-white" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-          <p className="text-muted-foreground">Manage your preferences</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Settings</h1>
+          <p className="text-sm text-muted-foreground hidden md:block">Manage your preferences</p>
         </div>
       </div>
 

@@ -54,17 +54,17 @@ const Dashboard = () => {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
-            <Newspaper className="h-6 w-6 text-white" />
+          <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
+            <Newspaper className="h-5 w-5 md:h-6 md:w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground">Your personalized news digest</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-sm text-muted-foreground hidden md:block">Your personalized news digest</p>
           </div>
         </div>
-        <div className="text-right text-sm text-muted-foreground">
+        <div className="text-right text-xs md:text-sm text-muted-foreground">
           {new Date().toLocaleDateString("en-US", {
             weekday: "long",
             month: "long",
