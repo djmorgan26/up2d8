@@ -63,7 +63,20 @@ async def create_article(article: ArticleCreate, db=Depends(get_db_client)):
 async def get_articles(db=Depends(get_db_client)):
     articles_collection = db.articles
     articles = list(articles_collection.find({}, {"_id": 0}))
-    return articles
+
+    # Transform to match frontend expectations
+    transformed = []
+    for article in articles:
+        transformed.append({
+            "id": article.get("id"),
+            "title": article.get("title"),
+            "description": article.get("summary"),  # Map summary to description
+            "url": article.get("link"),  # Map link to url
+            "published_at": article.get("published"),  # Map published to published_at
+            "source": article.get("source", "Unknown"),
+        })
+
+    return {"data": transformed}
 
 @router.get("/api/articles/{article_id}", status_code=status.HTTP_200_OK)
 async def get_article(article_id: str, db=Depends(get_db_client)):

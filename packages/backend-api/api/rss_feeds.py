@@ -45,7 +45,7 @@ async def create_rss_feed(feed: RssFeedCreate, db=Depends(get_db_client)):
 async def get_rss_feeds(db=Depends(get_db_client)):
     rss_feeds_collection = db.rss_feeds
     feeds = list(rss_feeds_collection.find({}, {"_id": 0}))
-    return feeds
+    return {"data": feeds}
 
 @router.get("/api/rss_feeds/{feed_id}", status_code=status.HTTP_200_OK)
 async def get_rss_feed(feed_id: str, db=Depends(get_db_client)):
