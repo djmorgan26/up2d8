@@ -67,13 +67,26 @@ async def get_articles(db=Depends(get_db_client)):
     # Transform to match frontend expectations
     transformed = []
     for article in articles:
+        # Extract source from URL domain if not provided
+        source = article.get("source")
+        if not source or source == "rss":
+            # Extract domain from URL
+            link = article.get("link", "")
+            if link:
+                from urllib.parse import urlparse
+                domain = urlparse(link).netloc
+                # Remove www. and get the main domain
+                source = domain.replace("www.", "").split(".")[0].title() if domain else "RSS"
+            else:
+                source = "RSS"
+
         transformed.append({
-            "id": article.get("id"),
+            "id": article.get("id") or str(uuid.uuid4()),  # Generate ID if missing
             "title": article.get("title"),
             "description": article.get("summary"),  # Map summary to description
             "url": article.get("link"),  # Map link to url
             "published_at": article.get("published"),  # Map published to published_at
-            "source": article.get("source", "Unknown"),
+            "source": source,
         })
 
     return {"data": transformed}
