@@ -1,5 +1,6 @@
 import os
 import pymongo
+import feedparser
 from langchain_community.utilities import GoogleSearchAPIWrapper
 from shared.key_vault_client import get_secret_client
 import structlog
@@ -8,7 +9,7 @@ logger = structlog.get_logger()
 
 def find_new_articles() -> list[str]:
     """
-    Core orchestration logic to find new articles based on user topics.
+    Core orchestration logic to find new articles based on user topics and RSS feeds.
     This function is designed to be called by different triggers.
     """
     try:
@@ -19,50 +20,69 @@ def find_new_articles() -> list[str]:
         google_api_key = secret_client.get_secret("GOOGLE-CUSTOM-SEARCH-API").value
         google_cse_id = os.getenv("GOOGLE_CSE_ID")
 
-        if not google_cse_id:
-            logger.warning("GOOGLE_CSE_ID is not set. Orchestration cannot run.")
-            return []
-
-        os.environ["GOOGLE_API_KEY"] = google_api_key
-        os.environ["GOOGLE_CSE_ID"] = google_cse_id
-
+        # Initialize MongoDB client
         client = pymongo.MongoClient(cosmos_db_connection_string)
         db = client.up2d8
         users_collection = db.users
         articles_collection = db.articles
+        rss_feeds_collection = db.rss_feeds # Get RSS feeds collection
 
-        # --- 2. Fetch User Topics ---
+        all_found_urls = set()
+
+        # --- 2. Process RSS Feeds ---
+        logger.info("Processing RSS feeds...")
+        for feed_doc in rss_feeds_collection.find({}):
+            feed_url = feed_doc.get("url")
+            if not feed_url:
+                logger.warning("RSS feed document missing URL", feed_id=feed_doc.get("id"))
+                continue
+            
+            logger.info("Parsing RSS feed", url=feed_url)
+            try:
+                parsed_feed = feedparser.parse(feed_url)
+                for entry in parsed_feed.entries:
+                    if hasattr(entry, 'link'):
+                        all_found_urls.add(entry.link)
+            except Exception as e:
+                logger.error("Error parsing RSS feed", url=feed_url, error=str(e))
+        
+        logger.info("Found URLs from RSS feeds", count=len(all_found_urls))
+
+        # --- 3. Fetch User Topics and Search (Existing Logic) ---
         all_topics = set()
         for user in users_collection.find({}, {"topics": 1}):
             for topic in user.get("topics", []):
                 all_topics.add(topic)
         
         if not all_topics:
-            logger.warning("No user topics found. Orchestrator finished without searching.")
-            return []
+            logger.warning("No user topics found for Google Search.")
+        else:
+            logger.info("Found unique user topics", topics=list(all_topics))
 
-        logger.info("Found unique user topics", topics=list(all_topics))
+            if not google_cse_id:
+                logger.warning("GOOGLE_CSE_ID is not set. Google Search will not run.")
+            else:
+                os.environ["GOOGLE_API_KEY"] = google_api_key
+                os.environ["GOOGLE_CSE_ID"] = google_cse_id
 
-        # --- 3. Search for Articles ---
-        search = GoogleSearchAPIWrapper()
-        all_found_urls = set()
+                search = GoogleSearchAPIWrapper()
 
-        for topic in all_topics:
-            logger.info("Searching for articles", topic=topic)
-            try:
-                search_results = search.results(f"latest articles about {topic}", num_results=5)
-                for res in search_results:
-                    if "link" in res:
-                        all_found_urls.add(res["link"])
-            except Exception as e:
-                logger.error("Error during search for topic", topic=topic, error=str(e))
+                for topic in all_topics:
+                    logger.info("Searching for articles via Google Search", topic=topic)
+                    try:
+                        search_results = search.results(f"latest articles about {topic}", num_results=5)
+                        for res in search_results:
+                            if "link" in res:
+                                all_found_urls.add(res["link"])
+                    except Exception as e:
+                        logger.error("Error during Google Search for topic", topic=topic, error=str(e))
+                
+                logger.info("Found total URLs from RSS and Google Search", count=len(all_found_urls))
 
         if not all_found_urls:
-            logger.warning("Search did not return any URLs.")
+            logger.warning("No URLs found from RSS feeds or Google Search. Orchestrator finished.")
             return []
         
-        logger.info("Found total URLs from search", count=len(all_found_urls))
-
         # --- 4. Deduplicate against existing articles ---
         existing_links = {article["link"] for article in articles_collection.find({"link": {"$in": list(all_found_urls)}}, {"link": 1})}
         

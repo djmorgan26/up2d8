@@ -19,8 +19,9 @@ export const getArticles = () => api.get("/articles");
 export const getRSSFeeds = () => api.get("/rss_feeds");
 
 // Protected endpoints
-export const addRSSFeed = (url: string) => api.post("/rss_feeds", { url });
+export const addRSSFeed = (url: string, category?: string, title?: string) => api.post("/rss_feeds", { url, category, title });
 export const deleteRSSFeed = (feedId: string) => api.delete(`/rss_feeds/${feedId}`);
+export const suggestRSSFeeds = (query: string) => api.post("/rss_feeds/suggest", { query });
 
 export const getUser = (userId: string) => api.get(`/users/${userId}`);
 export const updateUser = (userId: string, data: any) => api.put(`/users/${userId}`, data);

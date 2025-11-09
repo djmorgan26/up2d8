@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { getRSSFeeds, addRSSFeed, deleteRSSFeed } from "@/lib/api";
+import { getRSSFeeds, addRSSFeed, deleteRSSFeed, suggestRSSFeeds } from "@/lib/api";
 import { GlassCard } from "@/components/GlassCard";
 import { FeedSkeleton } from "@/components/LoadingSkeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Rss, Trash2, Plus } from "lucide-react";
+import { Rss, Trash2, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMsal } from "@azure/msal-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,12 +17,21 @@ interface Feed {
   category?: string; // Add category
 }
 
+interface SuggestedFeed {
+  title: string;
+  url: string;
+  category: string;
+}
+
 const Feeds = () => {
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const [loading, setLoading] = useState(true);
   const [newFeedUrl, setNewFeedUrl] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(""); // New state for search term
+  const [llmSearchQuery, setLlmSearchQuery] = useState(""); // State for LLM search query
+  const [llmSuggestions, setLlmSuggestions] = useState<SuggestedFeed[]>([]); // State for LLM suggestions
+  const [llmLoading, setLlmLoading] = useState(false); // State for LLM loading
   const { instance, accounts } = useMsal();
   const isAuthenticated = accounts.length > 0;
 
@@ -66,6 +75,58 @@ const Feeds = () => {
     } catch (error) {
       console.error("Failed to add feed:", error);
       toast.error("Failed to add feed");
+    }
+  };
+
+  const handleSuggestFeeds = async () => {
+    if (!isAuthenticated) {
+      try {
+        await instance.loginPopup(loginRequest);
+      } catch (error) {
+        console.error("Login failed:", error);
+        return;
+      }
+    }
+
+    if (!llmSearchQuery.trim()) {
+      toast.error("Please enter a search query for suggestions");
+      return;
+    }
+
+    setLlmLoading(true);
+    setLlmSuggestions([]); // Clear previous suggestions
+    try {
+      const response = await suggestRSSFeeds(llmSearchQuery);
+      setLlmSuggestions(response.data.suggestions);
+      if (response.data.suggestions.length === 0) {
+        toast.info("No suggestions found for your query.");
+      }
+    } catch (error) {
+      console.error("Failed to get feed suggestions:", error);
+      toast.error("Failed to get feed suggestions");
+    } finally {
+      setLlmLoading(false);
+    }
+  };
+
+  const handleAddSuggestedFeed = async (url: string, category: string, title: string) => {
+    if (!isAuthenticated) {
+      try {
+        await instance.loginPopup(loginRequest);
+      } catch (error) {
+        console.error("Login failed:", error);
+        return;
+      }
+    }
+
+    try {
+      await addRSSFeed(url, category, title);
+      toast.success("Feed added successfully");
+      setLlmSuggestions(llmSuggestions.filter(feed => feed.url !== url)); // Remove from suggestions
+      fetchFeeds();
+    } catch (error) {
+      console.error("Failed to add suggested feed:", error);
+      toast.error("Failed to add suggested feed");
     }
   };
 
@@ -131,6 +192,7 @@ const Feeds = () => {
               <DialogTitle>Add New RSS Feed</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Add by URL</h3>
               <Input
                 placeholder="Enter RSS feed URL"
                 value={newFeedUrl}
@@ -141,6 +203,47 @@ const Feeds = () => {
               <Button onClick={handleAddFeed} className="w-full gradient-primary text-white">
                 Add Feed
               </Button>
+
+              <div className="relative flex items-center py-5">
+                <div className="flex-grow border-t border-gray-400"></div>
+                <span className="flex-shrink mx-4 text-gray-400">OR</span>
+                <div className="flex-grow border-t border-gray-400"></div>
+              </div>
+
+              <h3 className="text-lg font-semibold">Suggest Feeds with AI</h3>
+              <div className="flex space-x-2">
+                <Input
+                  placeholder="e.g., 'tech news', 'cooking blogs'"
+                  value={llmSearchQuery}
+                  onChange={(e) => setLlmSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSuggestFeeds()}
+                  className="glass-card border-border/50"
+                />
+                <Button onClick={handleSuggestFeeds} disabled={llmLoading} className="gradient-primary text-white">
+                  {llmLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Suggest"}
+                </Button>
+              </div>
+
+              {llmSuggestions.length > 0 && (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {llmSuggestions.map((sugg, index) => (
+                    <GlassCard key={index} hover className="flex items-center justify-between p-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{sugg.title}</p>
+                        <p className="text-sm text-muted-foreground truncate">{sugg.url}</p>
+                        <p className="text-xs text-muted-foreground">Category: {sugg.category}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleAddSuggestedFeed(sugg.url, sugg.category, sugg.title)}
+                        className="ml-2 shrink-0 gradient-primary text-white"
+                      >
+                        Add
+                      </Button>
+                    </GlassCard>
+                  ))}
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
