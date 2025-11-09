@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm:*)",
+      "Bash(cat:*)",
+      "Bash(npm run ios:*)",
+      "Bash(git add:*)",
+      "Bash(tree:*)",
+      "Bash(git tag:*)",
+      "Bash(python3:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(pip install:*)",
+      "Bash(./venv/bin/pip list:*)",
+      "Bash(./venv/bin/uvicorn:*)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(az account show:*)",
+      "Bash(npm install)",
+      "Bash(git commit:*)",
+      "Bash(npm start)",
+      "Bash(node -e:*)",
+      "Bash(npx react-native start --reset-cache)",
+      "Bash(npm install:*)",
+      "Bash(xcodebuild:*)",
+      "Bash(npx react-native:*)",
+      "Bash(pod deintegrate:*)",
+      "Bash(pod install)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
