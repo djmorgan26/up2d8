@@ -8,6 +8,11 @@
 
 ## 🆕 Recent Changes
 
+### 2025-11-09 - RSS Feed Enhancements & Function App Integration
+- ✅ **Added**: LLM-powered RSS feed suggestions with Google Search grounding → [rss-feed-suggestions.md](./knowledge/features/rss-feed-suggestions.md)
+- 📂 **Implemented**: Category standardization for RSS feeds (backend-driven) → [category-standardization.md](./knowledge/features/category-standardization.md)
+- 🔄 **Integrated**: Function App to scrape articles from stored RSS feeds → [function-app-rss-scraping.md](./knowledge/features/function-app-rss-scraping.md)
+
 ### 2025-11-09 - User Preferences, AI Suggestions & Feed Enhancements
 - ✅ **Added**: User preferences management with dialogs → [user-preferences-management.md](./knowledge/features/user-preferences-management.md)
 - 🎨 **Created**: PreferencesDialog component (topics + newsletter format) → [settings-dialogs.md](./knowledge/components/settings-dialogs.md)
@@ -109,7 +114,7 @@
 - [Documentation Style](./preferences/documentation-style.md) - Docs philosophy, formats, examples
 
 ### Knowledge Base (Grows over time)
-- [Features](./knowledge/features/) - **6 documented** - Cross-cutting features
+- [Features](./knowledge/features/) - **9 documented** - Cross-cutting features
 - [Frontend](./knowledge/frontend/) - **1 documented** - Web app components
 - [Backend Features](./knowledge/backend/) - **0 documented** - Backend API features
 - [Functions](./knowledge/functions/) - **0 documented** - Azure Functions features
@@ -122,8 +127,8 @@
 ## 📊 Project Stats
 
 - **Monorepo structure**: 4 packages (backend-api, functions, mobile-app, web-app) + shared
-- **Total knowledge files**: 21 (overview, architecture, 4 preferences, 3 decisions, 6 features, 3 components, 3 patterns)
-- **Features documented**: 6
+- **Total knowledge files**: 24 (overview, architecture, 4 preferences, 3 decisions, 9 features, 3 components, 3 patterns)
+- **Features documented**: 9
 - **Components documented**: 3
 - **Patterns captured**: 3
 - **Decisions recorded**: 3
@@ -160,7 +165,10 @@
 
 ## 🗺️ Knowledge Map
 
-### Features (6)
+### Features (9)
+- [RSS Feed Suggestions with AI](./knowledge/features/rss-feed-suggestions.md) - Discover and add new RSS feeds using AI-powered suggestions
+- [Category Standardization for RSS Feeds](./knowledge/features/category-standardization.md) - Standardize categories for RSS feeds to ensure consistency
+- [Function App RSS Scraping Integration](./knowledge/features/function-app-rss-scraping.md) - Integrate RSS feed scraping into the Azure Function App's article discovery process
 - [Dashboard Overview](./knowledge/features/dashboard-overview.md) - Main landing page with stats cards, featured stories, and recent articles
 - [AI Chat Integration](./knowledge/features/ai-chat-integration.md) - Interactive chat with Google Gemini AI (2.5-flash) via web app
 - [Entra ID Authentication](./knowledge/features/entra-id-authentication.md) - Single sign-on with Microsoft Entra ID for web and API
