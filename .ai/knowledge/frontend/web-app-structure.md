@@ -591,6 +591,6 @@ npm run preview
 
 ## Notes
 
-- **Lovable Origin:** This web app was initially generated using Lovable.dev (see README.md), then integrated into UP2D8 monorepo
 - **shadcn/ui:** All 49 components are committed to repo (not installed as dependency)
 - **Monorepo Integration:** Web app shares root-level git but has independent package.json
+- **Favicon:** Multiple formats available (SVG, ICO) with light/dark mode variants

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="dark icon">
+  <!-- dark rounded square background -->
+  <rect x="48" y="48" width="928" height="928" rx="184" ry="184" fill="#0E2533"/>
+
+  <!-- diamond outline (same geometry as light) -->
+  <g transform="translate(512,360)">
+    <path d="M 0 -240 L 210 0 L 0 240 L -210 0 Z"
+          transform="translate(0,116)"
+          fill="none" stroke="#8CC8FF" stroke-width="44" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M -120 116 L 0 -20 L 120 116"
+          transform="translate(0,116)"
+          fill="none" stroke="#8CC8FF" stroke-width="44" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M 0 -20 L 0 220"
+          transform="translate(0,116)"
+          fill="none" stroke="#8CC8FF" stroke-width="44" stroke-linejoin="round" stroke-linecap="round"/>
+  </g>
+
+  <!-- '8' loops in light-blue -->
+  <g transform="translate(512,270)">
+    <path d="M -45 -38
+             C -45 -70, 45 -70, 45 -38
+             C 45 -6, -45 -6, -45 -38 Z"
+          fill="none" stroke="#8CC8FF" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M -45 38
+             C -45 6, 45 6, 45 38
+             C 45 70, -45 70, -45 38 Z"
+          fill="none" stroke="#8CC8FF" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <rect x="0" y="0" width="1024" height="1024" fill="none"/>
+</svg>
