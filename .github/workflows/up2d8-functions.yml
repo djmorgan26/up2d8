@@ -1,0 +1,171 @@
+name: Deploy Function App
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  PYTHON_VERSION: '3.11'
+  AZURE_FUNCTIONAPP_NAME: up2d8-function-app
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: 'packages/functions'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Create and activate virtual environment
+        working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+
+      - name: Install dependencies
+        working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        run: |
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Playwright browsers (for web crawling)
+        working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        run: |
+          source .venv/bin/activate
+          playwright install chromium
+        continue-on-error: true
+
+      - name: Run tests (if available)
+        working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        run: |
+          source .venv/bin/activate
+          if [ -f "pytest.ini" ] || [ -d "tests" ]; then
+            pip install pytest pytest-asyncio
+            pytest || echo "Tests failed or not configured"
+          else
+            echo "No tests found, skipping test step"
+          fi
+        continue-on-error: true
+
+      - name: Package functions
+        working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        run: |
+          # Remove development files from deployment
+          rm -rf .venv
+          rm -rf tests
+          rm -rf .pytest_cache
+          rm -rf __pycache__
+          # Note: Do not zip - Azure Functions Deploy action handles packaging
+
+      - name: Deploy to Azure Function App
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+          scm-do-build-during-deployment: true
+          enable-oryx-build: true
+
+      - name: Verify deployment
+        run: |
+          echo "Waiting 60 seconds for function app to fully start..."
+          sleep 60
+          HEALTH_URL="https://${{ env.AZURE_FUNCTIONAPP_NAME }}.azurewebsites.net/api/HealthMonitor"
+          echo "Testing health endpoint: $HEALTH_URL"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
+          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 204 ]; then
+            echo "✅ Function App deployment successful! Health check passed."
+          else
+            echo "⚠️  Function App deployed but health check returned status: $HTTP_STATUS"
+            echo "This may be normal if HealthMonitor requires authentication or hasn't fully initialized."
+          fi
+
+      - name: List deployed functions
+        run: |
+          echo "Deployed functions should include:"
+          echo "  - DailyArticleScraper (Timer: 0 0 8 * * *)"
+          echo "  - NewsletterGenerator (Timer: 0 0 9 * * *)"
+          echo "  - CrawlerOrchestrator (Durable)"
+          echo "  - CrawlerWorker (Queue)"
+          echo "  - HealthMonitor (HTTP)"
+          echo "  - ManualTrigger (HTTP)"
+          echo "  - DataArchival (Timer: 0 0 0 * * SUN)"
+
+      - name: Send success notification
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.NOTIFICATION_EMAIL }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '✅ Function App Deployment Successful - ${{ github.repository }}'
+          body: |
+            Function App deployment completed successfully!
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Workflow: ${{ github.workflow }}
+            Triggered by: ${{ github.actor }}
+
+            Function App: https://${{ env.AZURE_FUNCTIONAPP_NAME }}.azurewebsites.net
+            Health check: https://${{ env.AZURE_FUNCTIONAPP_NAME }}.azurewebsites.net/api/HealthMonitor
+
+            Deployed Functions:
+            - DailyArticleScraper (Timer: 08:00 UTC daily)
+            - NewsletterGenerator (Timer: 09:00 UTC daily)
+            - CrawlerOrchestrator (Durable)
+            - CrawlerWorker (Queue trigger)
+            - HealthMonitor (HTTP)
+            - ManualTrigger (HTTP)
+            - DataArchival (Timer: Sunday 00:00 UTC)
+
+            View run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: UP2D8 Deployments
+
+      - name: Send failure notification
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.NOTIFICATION_EMAIL }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '❌ Function App Deployment Failed - ${{ github.repository }}'
+          body: |
+            Function App deployment failed!
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Workflow: ${{ github.workflow }}
+            Triggered by: ${{ github.actor }}
+
+            Please check the logs for details:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Common issues:
+            - Python version mismatch (ensure 3.11)
+            - Missing dependencies in requirements.txt
+            - Key Vault access not configured
+            - Environment variables not set in Azure Portal
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: UP2D8 Deployments

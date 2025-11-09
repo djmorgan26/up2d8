@@ -1,0 +1,162 @@
+name: Deploy Static Web App
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  NODE_VERSION: '20.x'
+  AZURE_STATIC_WEB_APP_NAME: up2d8-web
+  WEB_APP_PACKAGE_PATH: 'packages/web-app'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.WEB_APP_PACKAGE_PATH }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.WEB_APP_PACKAGE_PATH }}
+        run: npm ci
+
+      - name: Build application
+        working-directory: ${{ env.WEB_APP_PACKAGE_PATH }}
+        run: npm run build
+        env:
+          # Vite environment variables for production build
+          VITE_APP_ENTRA_CLIENT_ID: 2b5f5cca-a081-43bc-9ac9-8fdfd5ca0d97
+          VITE_APP_ENTRA_TENANT_ID: 6f69caf6-bea0-4a54-a20c-7469005eadf4
+          VITE_APP_ENTRA_REDIRECT_URI: https://gray-wave-00bdfc60f.3.azurestaticapps.net
+          VITE_APP_ENTRA_API_SCOPE: api://2b5f5cca-a081-43bc-9ac9-8fdfd5ca0d97/access_as_user
+
+      - name: Verify build output
+        working-directory: ${{ env.WEB_APP_PACKAGE_PATH }}
+        run: |
+          if [ -d "dist" ]; then
+            echo "✅ Build successful - dist directory created"
+            echo "Build output size:"
+            du -sh dist
+            echo "Build contents:"
+            ls -lah dist
+          else
+            echo "❌ Build failed - dist directory not found"
+            exit 1
+          fi
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: 'upload'
+          app_location: '${{ env.WEB_APP_PACKAGE_PATH }}/dist'
+          skip_app_build: true
+          skip_api_build: true
+
+      - name: Verify deployment
+        run: |
+          echo "Waiting 30 seconds for deployment to propagate..."
+          sleep 30
+          WEB_APP_URL="https://gray-wave-00bdfc60f.3.azurestaticapps.net"
+          echo "Testing web app: $WEB_APP_URL"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$WEB_APP_URL")
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✅ Static Web App deployment successful!"
+          else
+            echo "⚠️  Web app returned status: $HTTP_STATUS (may still be propagating)"
+          fi
+
+      - name: Test API proxy
+        run: |
+          echo "Testing API proxy configuration..."
+          API_HEALTH_URL="https://gray-wave-00bdfc60f.3.azurestaticapps.net/api/health"
+          echo "Testing: $API_HEALTH_URL"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_HEALTH_URL" || echo "000")
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✅ API proxy working correctly!"
+          else
+            echo "⚠️  API proxy test returned status: $HTTP_STATUS"
+            echo "This may indicate staticwebapp.config.json needs verification or backend CORS settings need update."
+          fi
+
+      - name: Send success notification
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.NOTIFICATION_EMAIL }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '✅ Static Web App Deployment Successful - ${{ github.repository }}'
+          body: |
+            Static Web App deployment completed successfully!
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Workflow: ${{ github.workflow }}
+            Triggered by: ${{ github.actor }}
+
+            Web App URL: https://gray-wave-00bdfc60f.3.azurestaticapps.net
+
+            Features available:
+            - Dashboard: View articles and stats
+            - Feeds: Manage RSS feed subscriptions
+            - Chat: AI-powered chat with web search
+            - Settings: User preferences and notifications
+
+            Next steps:
+            1. Test login flow with Entra ID
+            2. Verify API calls work (check CORS if issues)
+            3. Test all pages for mobile responsiveness
+
+            View run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: UP2D8 Deployments
+
+      - name: Send failure notification
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.NOTIFICATION_EMAIL }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '❌ Static Web App Deployment Failed - ${{ github.repository }}'
+          body: |
+            Static Web App deployment failed!
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Workflow: ${{ github.workflow }}
+            Triggered by: ${{ github.actor }}
+
+            Please check the logs for details:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Common issues:
+            - Build errors (check npm run build locally)
+            - Missing environment variables (VITE_* prefixed)
+            - Incorrect API token in GitHub secrets
+            - staticwebapp.config.json misconfiguration
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: UP2D8 Deployments

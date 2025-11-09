@@ -45,10 +45,17 @@ app = FastAPI(
     ],
 )
 
-# CORS configuration for mobile app
+# CORS configuration
+# Production: Specify exact origins for security
+# Development: Use * for local testing
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend domain
+    allow_origins=[
+        "http://localhost:5173",  # Local Vite dev server
+        "http://localhost:8080",  # Local Vite alternative port
+        "https://gray-wave-00bdfc60f.3.azurestaticapps.net",  # Production Static Web App
+        # Add custom domain here if configured later
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

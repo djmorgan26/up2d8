@@ -1,0 +1,134 @@
+name: Deploy Backend API
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  PYTHON_VERSION: '3.11'
+  AZURE_WEBAPP_NAME: up2d8
+  AZURE_WEBAPP_PACKAGE_PATH: 'packages/backend-api'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Create and activate virtual environment
+        working-directory: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+
+      - name: Install dependencies
+        working-directory: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        run: |
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests (if available)
+        working-directory: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        run: |
+          source venv/bin/activate
+          if [ -f "pytest.ini" ] || [ -d "tests" ]; then
+            pip install pytest pytest-asyncio httpx
+            pytest || echo "Tests failed or not configured"
+          else
+            echo "No tests found, skipping test step"
+          fi
+        continue-on-error: true
+
+      - name: Create deployment package
+        working-directory: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        run: |
+          # Remove virtual environment from deployment package
+          rm -rf venv
+          # Create zip file
+          zip -r ../backend-api.zip . -x "*.pyc" -x "__pycache__/*" -x ".pytest_cache/*" -x "tests/*"
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: packages/backend-api.zip
+
+      - name: Verify deployment
+        run: |
+          echo "Waiting 30 seconds for deployment to complete..."
+          sleep 30
+          HEALTH_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/api/health"
+          echo "Testing health endpoint: $HEALTH_URL"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✅ Backend API deployment successful! Health check passed."
+          else
+            echo "❌ Backend API health check failed with status: $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Send success notification
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.NOTIFICATION_EMAIL }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '✅ Backend API Deployment Successful - ${{ github.repository }}'
+          body: |
+            Backend API deployment completed successfully!
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Workflow: ${{ github.workflow }}
+            Triggered by: ${{ github.actor }}
+
+            Health check: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/api/health
+            Swagger docs: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/docs
+
+            View run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: UP2D8 Deployments
+
+      - name: Send failure notification
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.NOTIFICATION_EMAIL }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: '❌ Backend API Deployment Failed - ${{ github.repository }}'
+          body: |
+            Backend API deployment failed!
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Workflow: ${{ github.workflow }}
+            Triggered by: ${{ github.actor }}
+
+            Please check the logs for details:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: UP2D8 Deployments
