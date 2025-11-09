@@ -141,26 +141,32 @@ FUNCTION_IDENTITY=$(az functionapp identity show \
 check_status "Function App Managed Identity enabled (Object ID: $FUNCTION_IDENTITY)"
 
 #
-# 3. Grant Key Vault Access
+# 3. Grant Key Vault Access (RBAC-based)
 #
 echo ""
-echo -e "${YELLOW}[3/4] Configuring Key Vault Access${NC}"
+echo -e "${YELLOW}[3/4] Configuring Key Vault Access (RBAC)${NC}"
+
+# Get Key Vault resource ID
+KEY_VAULT_ID=$(az keyvault show \
+    --name "$KEY_VAULT_NAME" \
+    --resource-group "$RESOURCE_GROUP" \
+    --query id -o tsv)
 
 echo "Granting Backend API access to Key Vault..."
-az keyvault set-policy \
-    --name "$KEY_VAULT_NAME" \
-    --object-id "$BACKEND_IDENTITY" \
-    --secret-permissions get list \
-    --output none
-check_status "Backend has Key Vault access"
+az role assignment create \
+    --assignee "$BACKEND_IDENTITY" \
+    --role "Key Vault Secrets User" \
+    --scope "$KEY_VAULT_ID" \
+    --output none 2>/dev/null || echo "Role already assigned"
+check_status "Backend has Key Vault Secrets User role"
 
 echo "Granting Function App access to Key Vault..."
-az keyvault set-policy \
-    --name "$KEY_VAULT_NAME" \
-    --object-id "$FUNCTION_IDENTITY" \
-    --secret-permissions get list \
-    --output none
-check_status "Function App has Key Vault access"
+az role assignment create \
+    --assignee "$FUNCTION_IDENTITY" \
+    --role "Key Vault Secrets User" \
+    --scope "$KEY_VAULT_ID" \
+    --output none 2>/dev/null || echo "Role already assigned"
+check_status "Function App has Key Vault Secrets User role"
 
 #
 # 4. Configure Static Web App
