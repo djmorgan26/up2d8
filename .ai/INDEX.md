@@ -2,20 +2,23 @@
 
 **Last Updated**: 2025-11-08
 **Project Type**: Monorepo (Backend API + Azure Functions + Mobile App + Web App)
-**Knowledge Items**: 1 feature • 0 components • 0 patterns • 3 decisions
+**Knowledge Items**: 1 feature • 1 component • 0 patterns • 3 decisions
 
 ---
 
 ## 🆕 Recent Changes
 
-### 2025-11-08 - Authentication Implementation
+### 2025-11-08 - Web App & Authentication
+- ✅ **Added**: Web app frontend (React + Vite SPA) → [web-app-structure.md](./knowledge/frontend/web-app-structure.md)
 - ✅ **Added**: Entra ID authentication feature → [entra-id-authentication.md](./knowledge/features/entra-id-authentication.md)
+- 🎨 **Built**: 6 pages (Dashboard, Feeds, Chat, Settings, Onboarding, 404)
+- 🧩 **Integrated**: shadcn/ui component library (49 components)
 - 🔐 **Implemented**: Frontend MSAL integration (React) with popup/silent token flow
 - 🔒 **Implemented**: Backend JWT validation (FastAPI) with fastapi-azure-auth
 - 🎯 **Configured**: Single app registration approach for frontend + backend
+- 📦 **Added**: Complete tech stack (React 18, TypeScript, Vite, Tailwind, TanStack Query)
 - 📝 **Documented**: Comprehensive setup guide (AUTH_SETUP.md) and summary
-- 🔧 **Created**: Custom useAuth hook, AuthProvider, protected route examples
-- ⚙️ **Added**: Example auth component and protected API endpoints
+- 🔧 **Created**: Custom components, hooks, API client, auth system
 - 📋 **Recorded**: ADR 003 - Single App Registration decision
 
 ### 2025-11-08 - Monorepo Migration
@@ -55,6 +58,7 @@
 
 ### Knowledge Base (Grows over time)
 - [Features](./knowledge/features/) - **1 documented** - Cross-cutting features
+- [Frontend](./knowledge/frontend/) - **1 documented** - Web app components
 - [Backend Features](./knowledge/backend/) - **0 documented** - Backend API features
 - [Functions](./knowledge/functions/) - **0 documented** - Azure Functions features
 - [Mobile Features](./knowledge/mobile/) - **0 documented** - Mobile app features
@@ -66,9 +70,9 @@
 ## 📊 Project Stats
 
 - **Monorepo structure**: 4 packages (backend-api, functions, mobile-app, web-app) + shared
-- **Total knowledge files**: 10 (overview, architecture, 4 preferences, 3 decisions, 1 feature)
+- **Total knowledge files**: 11 (overview, architecture, 4 preferences, 3 decisions, 1 feature, 1 component)
 - **Features documented**: 1
-- **Components documented**: 0
+- **Components documented**: 1
 - **Patterns captured**: 0
 - **Decisions recorded**: 3
 - **Personal preferences**: 4 (coding, errors, testing, docs)
@@ -107,8 +111,8 @@
 ### Features (1)
 - [Entra ID Authentication](./knowledge/features/entra-id-authentication.md) - Single sign-on with Microsoft Entra ID for web and API
 
-### Components (0)
-*No components documented yet. Components will be captured as you build.*
+### Components (1)
+- [Web App Frontend](./knowledge/frontend/web-app-structure.md) - React SPA with Vite, TypeScript, shadcn/ui (6 pages, 49 UI components)
 
 ### Patterns (0)
 *No patterns documented yet. Patterns will emerge as you build features.*
