@@ -31,19 +31,16 @@ async def chat(request: ChatRequest, api_key: str = Depends(get_gemini_api_key))
     try:
         genai.configure(api_key=api_key)
 
-        # Configure Google Search grounding tool
-        google_search_tool = genai.Tool(
-            google_search_retrieval=genai.GoogleSearchRetrieval()
-        )
-
         model = genai.GenerativeModel(
             "gemini-2.5-flash",
             system_instruction="You are an AI assistant for UP2D8, a personal news digest and information management platform. Your goal is to help users stay updated and manage their information effectively. Provide concise, relevant, and helpful responses. Focus on news, summaries, and information retrieval. Avoid conversational filler and keep responses professional and to the point.",
-            tools=[google_search_tool]
         )
 
-        # Generate content with web search grounding
-        response = model.generate_content(request.prompt)
+        # Generate content with web search grounding (legacy google-generativeai library syntax)
+        response = model.generate_content(
+            request.prompt,
+            tools='google_search_retrieval'
+        )
 
         # Extract sources from grounding metadata
         sources = []
