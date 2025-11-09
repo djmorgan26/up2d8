@@ -4,13 +4,20 @@
   "description": "UP2D8 - Personal news digest and information management platform",
   "private": true,
   "workspaces": [
-    "packages/mobile-app"
+    "packages/mobile-app",
+    "packages/web-app"
   ],
   "scripts": {
     "mobile": "cd packages/mobile-app && npm start",
     "mobile:ios": "cd packages/mobile-app && npm run ios",
     "mobile:android": "cd packages/mobile-app && npm run android",
     "mobile:install": "cd packages/mobile-app && npm install",
+    "web:dev": "cd packages/web-app && npm run dev",
+    "web:build": "cd packages/web-app && npm run build",
+    "web:build:dev": "cd packages/web-app && npm run build:dev",
+    "web:lint": "cd packages/web-app && npm run lint",
+    "web:preview": "cd packages/web-app && npm run preview",
+    "web:install": "cd packages/web-app && npm install",
     "backend:install": "cd packages/backend-api && source .venv/bin/activate && pip install -r requirements.txt",
     "backend:venv": "cd packages/backend-api && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt",
     "functions:install": "cd packages/functions && source .venv/bin/activate && pip install -r requirements.txt",
@@ -20,8 +27,9 @@
     "test:backend": "cd packages/backend-api && source .venv/bin/activate && pytest",
     "test:functions": "cd packages/functions && source .venv/bin/activate && pytest",
     "test:mobile": "cd packages/mobile-app && npm test",
-    "install:all": "npm run mobile:install && npm run backend:install && npm run functions:install",
-    "test:all": "npm run test:backend && npm run test:functions && npm run test:mobile"
+    "test:web": "cd packages/web-app && npm test",
+    "install:all": "npm run mobile:install && npm run web:install && npm run backend:install && npm run functions:install",
+    "test:all": "npm run test:backend && npm run test:functions && npm run test:mobile && npm run test:web"
   },
   "repository": {
     "type": "git",
