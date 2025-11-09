@@ -76,6 +76,15 @@ jobs:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           resource-group-name: ${{ env.AZURE_RESOURCE_GROUP }}
           package: packages/backend-api.zip
+          clean: true
+
+      - name: Restart App Service
+        run: |
+          echo "Restarting app to clear cache and apply new build..."
+          az webapp restart \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+          echo "App restarted successfully"
 
       - name: Verify deployment
         run: |
