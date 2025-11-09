@@ -80,3 +80,112 @@ def test_get_article_by_id_not_found():
     assert response.json() == {"detail": "Article not found."}
 
     app.dependency_overrides = {}
+
+
+def test_get_articles_empty_database():
+    """Test getting articles when database is empty"""
+    mock_articles_collection = MagicMock()
+    mock_articles_collection.find.return_value = []
+
+    app.dependency_overrides[get_db_client] = lambda: MagicMock(articles=mock_articles_collection)
+
+    response = client.get("/api/articles")
+    assert response.status_code == 200
+    assert response.json() == {"data": []}
+
+    app.dependency_overrides = {}
+
+
+def test_get_articles_missing_fields():
+    """Test getting articles when some have missing fields"""
+    mock_articles_collection = MagicMock()
+    mock_articles_collection.find.return_value = [
+        {
+            "id": "article1",
+            "title": "Complete Article",
+            "summary": "Summary",
+            "link": "http://example.com/1",
+            "published": "2025-11-08T12:00:00Z",
+            "source": "Example",
+        },
+        {
+            "id": "article2",
+            "title": "Incomplete Article",
+            # missing summary
+            "link": "http://example.com/2",
+            "published": "2025-11-08T13:00:00Z",
+            # missing source
+        },
+    ]
+
+    app.dependency_overrides[get_db_client] = lambda: MagicMock(articles=mock_articles_collection)
+
+    response = client.get("/api/articles")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert len(data) == 2
+    # First article should be complete
+    assert data[0]["description"] == "Summary"
+    assert data[0]["source"] == "Example"
+
+    app.dependency_overrides = {}
+
+
+def test_get_articles_with_special_characters():
+    """Test articles with special characters in title/summary"""
+    mock_articles_collection = MagicMock()
+    mock_articles_collection.find.return_value = [
+        {
+            "id": "article1",
+            "title": "Article with <HTML> & \"quotes\"",
+            "summary": "Summary with special chars: © ™ € £",
+            "link": "http://example.com/1",
+            "published": "2025-11-08T12:00:00Z",
+            "source": "Example",
+        }
+    ]
+
+    app.dependency_overrides[get_db_client] = lambda: MagicMock(articles=mock_articles_collection)
+
+    response = client.get("/api/articles")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert len(data) == 1
+    assert '<HTML>' in data[0]["title"]
+    assert '©' in data[0]["description"]
+
+    app.dependency_overrides = {}
+
+
+def test_get_articles_database_error():
+    """Test handling of database errors when fetching articles"""
+    mock_articles_collection = MagicMock()
+    mock_articles_collection.find.side_effect = Exception("Database connection error")
+
+    app.dependency_overrides[get_db_client] = lambda: MagicMock(articles=mock_articles_collection)
+
+    response = client.get("/api/articles")
+    # Should return 500 error
+    assert response.status_code == 500
+
+    app.dependency_overrides = {}
+
+
+def test_get_article_with_invalid_id_format():
+    """Test getting article with various invalid ID formats"""
+    mock_articles_collection = MagicMock()
+    mock_articles_collection.find_one.return_value = None
+
+    app.dependency_overrides[get_db_client] = lambda: MagicMock(articles=mock_articles_collection)
+
+    # Test with very long ID
+    long_id = "a" * 1000
+    response = client.get(f"/api/articles/{long_id}")
+    assert response.status_code == 404
+
+    # Test with special characters
+    special_id = "article@#$%"
+    response = client.get(f"/api/articles/{special_id}")
+    assert response.status_code == 404
+
+    app.dependency_overrides = {}

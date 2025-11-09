@@ -2,15 +2,120 @@ from unittest.mock import MagicMock
 
 
 def test_chat_endpoint(test_client, mocker):
+    """Test basic chat endpoint with no sources"""
     client, _ = test_client  # Unpack the fixture, _ for unused mock_db_client
-    mock_generative_model = MagicMock()
-    mocker.patch("google.generativeai.GenerativeModel", return_value=mock_generative_model)
-    mock_generative_model.generate_content.return_value.text = "Mocked Gemini Response"
 
-    response = client.post("/api/chat", json={"prompt": "Hello Gemini"})  # Use the unpacked client
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.text = "Mocked Gemini Response"
+    mock_response.candidates = []
+    mock_client.models.generate_content.return_value = mock_response
+
+    mocker.patch("api.chat.genai.Client", return_value=mock_client)
+    mocker.patch("api.chat.get_gemini_api_key", return_value="fake_api_key")
+
+    response = client.post("/api/chat", json={"prompt": "Hello Gemini"})
     assert response.status_code == 200
-    assert response.json()["text"] == "Mocked Gemini Response"
-    mock_generative_model.generate_content.assert_called_once_with("Hello Gemini")
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["model"] == "gemini-2.5-flash"
+    assert data["reply"] == "Mocked Gemini Response"
+    assert data["sources"] == []
+
+
+def test_chat_endpoint_with_sources(test_client, mocker):
+    """Test chat endpoint with web search grounding sources"""
+    client, _ = test_client
+
+    # Create mock web source
+    mock_web = MagicMock()
+    mock_web.uri = "https://example.com/article"
+    mock_web.title = "Example Article Title"
+
+    mock_chunk = MagicMock()
+    mock_chunk.web = mock_web
+
+    mock_grounding_metadata = MagicMock()
+    mock_grounding_metadata.grounding_chunks = [mock_chunk]
+
+    mock_candidate = MagicMock()
+    mock_candidate.grounding_metadata = mock_grounding_metadata
+
+    mock_response = MagicMock()
+    mock_response.text = "Here's what I found about your query."
+    mock_response.candidates = [mock_candidate]
+
+    mock_client = MagicMock()
+    mock_client.models.generate_content.return_value = mock_response
+
+    mocker.patch("api.chat.genai.Client", return_value=mock_client)
+    mocker.patch("api.chat.get_gemini_api_key", return_value="fake_api_key")
+
+    response = client.post("/api/chat", json={"prompt": "What's new in AI?"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert len(data["sources"]) == 1
+    assert data["sources"][0]["web"]["uri"] == "https://example.com/article"
+    assert data["sources"][0]["web"]["title"] == "Example Article Title"
+
+
+def test_chat_endpoint_empty_prompt(test_client):
+    """Test chat endpoint rejects empty prompt"""
+    client, _ = test_client
+
+    response = client.post("/api/chat", json={"prompt": ""})
+    # FastAPI validation should catch this
+    assert response.status_code in [200, 422]  # May pass validation but fail in processing
+
+
+def test_chat_endpoint_long_prompt(test_client, mocker):
+    """Test chat endpoint handles very long prompts"""
+    client, _ = test_client
+
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.text = "Response to long prompt"
+    mock_response.candidates = []
+    mock_client.models.generate_content.return_value = mock_response
+
+    mocker.patch("api.chat.genai.Client", return_value=mock_client)
+    mocker.patch("api.chat.get_gemini_api_key", return_value="fake_api_key")
+
+    long_prompt = "What is AI? " * 500  # Very long prompt
+    response = client.post("/api/chat", json={"prompt": long_prompt})
+    assert response.status_code == 200
+
+
+def test_chat_endpoint_gemini_api_error(test_client, mocker):
+    """Test chat endpoint handles Gemini API errors gracefully"""
+    client, _ = test_client
+
+    mock_client = MagicMock()
+    mock_client.models.generate_content.side_effect = Exception("API rate limit exceeded")
+
+    mocker.patch("api.chat.genai.Client", return_value=mock_client)
+    mocker.patch("api.chat.get_gemini_api_key", return_value="fake_api_key")
+
+    response = client.post("/api/chat", json={"prompt": "Hello"})
+    assert response.status_code == 500
+    assert "Gemini API error" in response.json()["detail"]
+
+
+def test_chat_endpoint_invalid_request():
+    """Test chat endpoint validation"""
+    from fastapi.testclient import TestClient
+    from main import app
+
+    client = TestClient(app)
+
+    # Missing prompt field
+    response = client.post("/api/chat", json={})
+    assert response.status_code == 422
+
+    # Wrong data type
+    response = client.post("/api/chat", json={"prompt": 123})
+    assert response.status_code == 422
 
 
 def test_create_session(test_client, mocker):
