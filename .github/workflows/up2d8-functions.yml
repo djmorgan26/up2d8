@@ -16,6 +16,7 @@ env:
   PYTHON_VERSION: '3.11'
   AZURE_FUNCTIONAPP_NAME: up2d8-function-app
   AZURE_FUNCTIONAPP_PACKAGE_PATH: 'packages/functions'
+  AZURE_RESOURCE_GROUP: personal-rg
 
 jobs:
   build-and-deploy:
@@ -25,6 +26,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
@@ -78,9 +84,9 @@ jobs:
         with:
           app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
           scm-do-build-during-deployment: true
           enable-oryx-build: true
+          respect-funcignore: true
 
       - name: Verify deployment
         run: |

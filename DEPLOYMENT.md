@@ -159,30 +159,60 @@ Navigate to: GitHub → Your Repository → **Settings** → **Secrets and varia
 
 ### Required Secrets
 
-#### 1. Backend API Deployment Secret
-1. In Azure Portal → App Services → `up2d8` → **Deployment Center**
-2. Top menu → **Manage publish profile** → Download file
-3. Open the XML file and copy **entire contents**
-4. In GitHub → **New repository secret**:
-   - Name: `AZURE_WEBAPP_PUBLISH_PROFILE`
-   - Value: [Paste entire XML content]
+#### Option A: Automated Service Principal Creation (Recommended)
 
-#### 2. Function App Deployment Secret
-1. In Azure Portal → Function App → `up2d8-function-app` → **Deployment Center**
-2. Top menu → **Manage publish profile** → Download file
-3. Open the XML file and copy **entire contents**
-4. In GitHub → **New repository secret**:
-   - Name: `AZURE_FUNCTIONAPP_PUBLISH_PROFILE`
-   - Value: [Paste entire XML content]
+Run the script to create a service principal with appropriate permissions:
 
-#### 3. Static Web App Deployment Secret
+```bash
+cd /Users/davidmorgan/Documents/Repositories/up2d8
+./scripts/create-service-principal.sh
+```
+
+The script will output JSON credentials. Copy the entire JSON output.
+
+**Add to GitHub**:
+1. GitHub → Repository → Settings → Secrets and variables → Actions
+2. Click **New repository secret**
+3. Name: `AZURE_CREDENTIALS`
+4. Value: Paste the JSON from the script
+5. Click **Add secret**
+
+---
+
+#### Option B: Manual Service Principal Creation
+
+If the script doesn't work, create manually:
+
+```bash
+az ad sp create-for-rbac \
+  --name "up2d8-github-deploy" \
+  --role contributor \
+  --scopes /subscriptions/90d7fd42-6dc4-41e8-808e-b4a1e63b5a8e/resourceGroups/personal-rg \
+  --sdk-auth
+```
+
+Copy the entire JSON output and add as `AZURE_CREDENTIALS` secret in GitHub.
+
+---
+
+#### Static Web App Deployment Token
+
 1. In Azure Portal → Static Web Apps → `up2d8-web` → **Overview** page
 2. Click **Manage deployment token** → Copy the token
 3. In GitHub → **New repository secret**:
    - Name: `AZURE_STATIC_WEB_APPS_API_TOKEN`
    - Value: [Paste token]
 
-**Note**: Email notifications are not needed - GitHub will notify you through the Actions UI and any GitHub app you have configured.
+---
+
+### Summary of Secrets Needed
+
+| Secret Name | Purpose | How to Get |
+|-------------|---------|------------|
+| `AZURE_CREDENTIALS` | Deploy Backend API & Functions | Run `./scripts/create-service-principal.sh` |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN` | Deploy Static Web App | Azure Portal → Static Web App → Manage deployment token |
+
+**Note**: Email notifications are not configured - GitHub will notify you through the Actions UI.
 
 ---
 

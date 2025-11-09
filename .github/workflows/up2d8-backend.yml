@@ -16,6 +16,7 @@ env:
   PYTHON_VERSION: '3.11'
   AZURE_WEBAPP_NAME: up2d8
   AZURE_WEBAPP_PACKAGE_PATH: 'packages/backend-api'
+  AZURE_RESOURCE_GROUP: personal-rg
 
 jobs:
   build-and-deploy:
@@ -25,6 +26,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
@@ -68,7 +74,7 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          resource-group-name: ${{ env.AZURE_RESOURCE_GROUP }}
           package: packages/backend-api.zip
 
       - name: Verify deployment

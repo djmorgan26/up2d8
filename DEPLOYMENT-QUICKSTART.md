@@ -36,23 +36,35 @@ cd /Users/davidmorgan/Documents/Repositories/up2d8
 
 ---
 
-### Step 2: Add GitHub Secrets (5 minutes)
+### Step 2: Create Service Principal and GitHub Secrets (3 minutes)
+
+**Create Azure Service Principal**:
+
+```bash
+./scripts/create-service-principal.sh
+```
+
+This will output JSON credentials. Copy the entire JSON output.
+
+**Add GitHub Secrets**:
 
 Navigate to: **GitHub → Repository → Settings → Secrets and variables → Actions**
 
-**Create 3 secrets**:
+**Create 2 secrets**:
 
-1. **`AZURE_WEBAPP_PUBLISH_PROFILE`**
-   - Azure Portal → App Services → `up2d8` → Deployment Center
-   - Click "Manage publish profile" → Download → Copy entire XML content → Paste
+1. **`AZURE_CREDENTIALS`** (for Backend API & Functions deployment)
+   - Click "New repository secret"
+   - Name: `AZURE_CREDENTIALS`
+   - Value: Paste the JSON from the script above
+   - Click "Add secret"
 
-2. **`AZURE_FUNCTIONAPP_PUBLISH_PROFILE`**
-   - Azure Portal → Function App → `up2d8-function-app` → Deployment Center
-   - Click "Manage publish profile" → Download → Copy entire XML content → Paste
-
-3. **`AZURE_STATIC_WEB_APPS_API_TOKEN`**
+2. **`AZURE_STATIC_WEB_APPS_API_TOKEN`** (for Static Web App deployment)
    - Azure Portal → Static Web Apps → `up2d8-web` → Overview
-   - Click "Manage deployment token" → Copy token → Paste
+   - Click "Manage deployment token" → Copy token
+   - GitHub → New repository secret
+   - Name: `AZURE_STATIC_WEB_APPS_API_TOKEN`
+   - Value: Paste token
+   - Click "Add secret"
 
 ---
 
