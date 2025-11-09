@@ -10,3 +10,6 @@ httpx
 fastapi-azure-auth
 python-jose[cryptography]
 pyjwt[crypto]
+pytest-mock
+black
+ruff

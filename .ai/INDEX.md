@@ -1,12 +1,28 @@
 # AI Knowledge Base Index - UP2D8 Monorepo
 
-**Last Updated**: 2025-11-08
+**Last Updated**: 2025-11-09
 **Project Type**: Monorepo (Backend API + Azure Functions + Mobile App + Web App)
-**Knowledge Items**: 3 features • 2 components • 2 patterns • 3 decisions
+**Knowledge Items**: 6 features • 3 components • 3 patterns • 3 decisions
 
 ---
 
 ## 🆕 Recent Changes
+
+### 2025-11-09 - User Preferences, AI Suggestions & Feed Enhancements
+- ✅ **Added**: User preferences management with dialogs → [user-preferences-management.md](./knowledge/features/user-preferences-management.md)
+- 🎨 **Created**: PreferencesDialog component (topics + newsletter format) → [settings-dialogs.md](./knowledge/components/settings-dialogs.md)
+- 🔔 **Created**: NotificationsDialog component (email settings + frequency) → [settings-dialogs.md](./knowledge/components/settings-dialogs.md)
+- 🤖 **Added**: AI-powered topic suggestions with Gemini 2.0 Flash Experimental → [ai-topic-suggestions.md](./knowledge/features/ai-topic-suggestions.md)
+- ✨ **Integrated**: Topic suggestions directly into Preferences dialog with search
+- 🔍 **Added**: Feed search by title or URL with real-time filtering → [feed-search-and-categorization.md](./knowledge/features/feed-search-and-categorization.md)
+- 📂 **Implemented**: Feed categorization with grouping (Uncategorized fallback)
+- 🔄 **Implemented**: Entra ID user migration pattern (email → user_id) → [entra-id-user-migration.md](./knowledge/patterns/entra-id-user-migration.md)
+- 🔐 **Updated**: User API to use Entra ID tokens (get_current_user dependency)
+- 📝 **Added**: Comprehensive backend tests for user migration scenarios
+- ⚙️ **Replaced**: Settings placeholder toasts with functional dialogs
+- 🛠️ **Updated**: Onboarding to create user with Entra ID authentication
+- 🧪 **Improved**: Test coverage with pytest-mock, black, ruff added to requirements
+- 📋 **Enhanced**: Settings page fetches user data and refreshes after dialog saves
 
 ### 2025-11-08 - Dashboard Overview & Data Transformation
 - ✅ **Added**: Dashboard overview feature with stats and prioritized content → [dashboard-overview.md](./knowledge/features/dashboard-overview.md)
@@ -93,23 +109,23 @@
 - [Documentation Style](./preferences/documentation-style.md) - Docs philosophy, formats, examples
 
 ### Knowledge Base (Grows over time)
-- [Features](./knowledge/features/) - **3 documented** - Cross-cutting features
+- [Features](./knowledge/features/) - **6 documented** - Cross-cutting features
 - [Frontend](./knowledge/frontend/) - **1 documented** - Web app components
 - [Backend Features](./knowledge/backend/) - **0 documented** - Backend API features
 - [Functions](./knowledge/functions/) - **0 documented** - Azure Functions features
 - [Mobile Features](./knowledge/mobile/) - **0 documented** - Mobile app features
-- [Components](./knowledge/components/) - **2 documented** - Shared components
-- [Patterns](./knowledge/patterns/) - **2 documented** - Coding patterns
+- [Components](./knowledge/components/) - **3 documented** - Shared components
+- [Patterns](./knowledge/patterns/) - **3 documented** - Coding patterns
 
 ---
 
 ## 📊 Project Stats
 
 - **Monorepo structure**: 4 packages (backend-api, functions, mobile-app, web-app) + shared
-- **Total knowledge files**: 16 (overview, architecture, 4 preferences, 3 decisions, 3 features, 2 components, 2 patterns)
-- **Features documented**: 3
-- **Components documented**: 2
-- **Patterns captured**: 2
+- **Total knowledge files**: 21 (overview, architecture, 4 preferences, 3 decisions, 6 features, 3 components, 3 patterns)
+- **Features documented**: 6
+- **Components documented**: 3
+- **Patterns captured**: 3
 - **Decisions recorded**: 3
 - **Personal preferences**: 4 (coding, errors, testing, docs)
 - **Tech Stack**:
@@ -144,18 +160,23 @@
 
 ## 🗺️ Knowledge Map
 
-### Features (3)
+### Features (6)
 - [Dashboard Overview](./knowledge/features/dashboard-overview.md) - Main landing page with stats cards, featured stories, and recent articles
 - [AI Chat Integration](./knowledge/features/ai-chat-integration.md) - Interactive chat with Google Gemini AI (2.5-flash) via web app
 - [Entra ID Authentication](./knowledge/features/entra-id-authentication.md) - Single sign-on with Microsoft Entra ID for web and API
+- [User Preferences Management](./knowledge/features/user-preferences-management.md) - Topics, newsletter format, email notifications with modal dialogs
+- [AI Topic Suggestions](./knowledge/features/ai-topic-suggestions.md) - Gemini-powered topic discovery integrated into preferences
+- [Feed Search and Categorization](./knowledge/features/feed-search-and-categorization.md) - Real-time feed search and category grouping
 
-### Components (2)
+### Components (3)
 - [Azure Functions Architecture](./knowledge/components/azure-functions-architecture.md) - Serverless background tasks (6 functions: newsletters, crawling, health monitoring)
 - [Web App Frontend](./knowledge/frontend/web-app-structure.md) - React SPA with Vite, TypeScript, shadcn/ui (6 pages, 49 UI components)
+- [Settings Dialogs](./knowledge/components/settings-dialogs.md) - PreferencesDialog and NotificationsDialog with AI suggestions
 
-### Patterns (2)
+### Patterns (3)
 - [API Data Transformation Layer](./knowledge/patterns/api-data-transformation.md) - Transform database schema to frontend contract in API layer
 - [Azure Functions Local Development](./knowledge/patterns/azure-functions-local-dev.md) - Python 3.11 virtual environment + Azurite setup for local testing
+- [Entra ID User Migration](./knowledge/patterns/entra-id-user-migration.md) - Seamless migration from email-based to user_id-based authentication
 
 ### Decisions (3)
 - ✅ [003: Single App Registration](./context/decisions/003-single-app-registration.md) - Use one Entra ID app for frontend and backend

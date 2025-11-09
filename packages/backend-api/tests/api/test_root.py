@@ -1,13 +1,15 @@
-import sys
-sys.path.append("/Users/davidmorgan/Documents/Repositories/UP2D8-BACKEND")
-
-from unittest.mock import patch, MagicMock
-
+from fastapi.testclient import TestClient
 from main import app
 
-@patch("main.genai.configure")
-def test_read_root(mock_configure, test_client):
-    client, _ = test_client # Unpack the fixture, _ for unused mock_db_client
-    response = client.get("/") # Use the unpacked client
+client = TestClient(app)
+
+
+def test_read_root():
+    response = client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"Hello": "World"}
+    assert response.json() == {
+        "service": "UP2D8 Backend API",
+        "version": "1.0.0",
+        "status": "running",
+        "docs": "/docs",
+    }

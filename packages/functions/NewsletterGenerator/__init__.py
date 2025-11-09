@@ -8,10 +8,26 @@ from dotenv import load_dotenv
 from shared.key_vault_client import get_secret_client
 import structlog
 from shared.logger_config import configure_logger
+from datetime import datetime
 
 # Configure structlog
 configure_logger()
 logger = structlog.get_logger()
+
+def should_send_newsletter(frequency: str, last_sent: datetime = None) -> bool:
+    """Determine if newsletter should be sent based on frequency."""
+    now = datetime.utcnow()
+
+    if frequency == "daily":
+        return True  # Always send on daily schedule
+    elif frequency == "weekly":
+        # Send only on Mondays (0 = Monday)
+        return now.weekday() == 0
+    elif frequency == "monthly":
+        # Send only on 1st of month
+        return now.day == 1
+    else:
+        return True  # Default to daily
 
 def main(timer: func.TimerRequest) -> None:
     load_dotenv()
@@ -59,18 +75,38 @@ def main(timer: func.TimerRequest) -> None:
         sent_newsletters_count = 0
         for user in users:
             try:
-                user_subscribed_tags = user.get('subscribed_tags', [])
-                user_preferences = user.get('preferences', 'concise')
-                
-                # Filter articles based on subscribed tags
-                relevant_articles = [a for a in articles if any(tag in a.get('tags', []) for tag in user_subscribed_tags)]
+                # Get user topics and preferences (new schema)
+                user_topics = user.get('topics', [])
+                user_preferences = user.get('preferences', {})
+
+                # Get newsletter settings
+                newsletter_format = user_preferences.get('newsletter_format', 'concise')
+                newsletter_frequency = user_preferences.get('newsletter_frequency', 'daily')
+                email_notifications = user_preferences.get('email_notifications', True)
+
+                # Check if user has email notifications enabled
+                if not email_notifications:
+                    logger.info("Email notifications disabled for user", user_email=user['email'])
+                    continue
+
+                # Check if newsletter should be sent based on frequency
+                if not should_send_newsletter(newsletter_frequency):
+                    logger.info("Skipping user due to frequency setting",
+                               user_email=user['email'],
+                               frequency=newsletter_frequency)
+                    continue
+
+                # Filter articles based on topics
+                relevant_articles = [a for a in articles if any(topic.lower() in a.get('title', '').lower() or
+                                                                 topic.lower() in a.get('summary', '').lower()
+                                                                 for topic in user_topics)]
 
                 if not relevant_articles:
-                    logger.info("No relevant articles for user", user_email=user['email'], subscribed_tags=user_subscribed_tags)
+                    logger.info("No relevant articles for user", user_email=user['email'], topics=user_topics)
                     continue
 
                 # Generate newsletter content with Gemini
-                prompt = f"Create a {user_preferences} newsletter in Markdown from these articles:\n\n"
+                prompt = f"Create a {newsletter_format} newsletter in Markdown from these articles:\n\n"
                 for article in relevant_articles:
                     prompt += f"- **{article['title']}**: {article['summary']}\n"
                 

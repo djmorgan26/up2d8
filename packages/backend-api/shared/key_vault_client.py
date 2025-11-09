@@ -1,9 +1,11 @@
 import os
+
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from dotenv import load_dotenv
 
 _secret_client = None
+
 
 def get_secret_client() -> SecretClient:
     global _secret_client
@@ -13,6 +15,7 @@ def get_secret_client() -> SecretClient:
         credential = DefaultAzureCredential()
         _secret_client = SecretClient(vault_url=key_vault_uri, credential=credential)
     return _secret_client
+
 
 class KeyVaultClient:
     def __init__(self):

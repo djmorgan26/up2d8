@@ -6,6 +6,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useMsal } from "@azure/msal-react";
+import { api } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 
 const topics = [
   { id: "technology", label: "Technology" },
@@ -20,8 +22,9 @@ const topics = [
 
 const Onboarding = () => {
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
-  const { accounts } = useMsal();
+  const { user } = useAuth();
 
   const toggleTopic = (topicId: string) => {
     setSelectedTopics((prev) =>
@@ -37,15 +40,26 @@ const Onboarding = () => {
       return;
     }
 
+    if (!user?.username) {
+      toast.error("Please log in to continue");
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      // TODO: Send preferences to backend
-      // await updateUser(accounts[0].localAccountId, { preferences: selectedTopics });
-      
+      // Create or update user with selected topics
+      await api.post("/users", {
+        email: user.username,
+        topics: selectedTopics,
+      });
+
       toast.success("Welcome to up2d8! 🎉");
       navigate("/");
     } catch (error) {
       console.error("Failed to save preferences:", error);
       toast.error("Failed to save preferences");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -87,9 +101,9 @@ const Onboarding = () => {
         <Button
           onClick={handleSubmit}
           className="w-full gradient-primary text-white shadow-lg text-lg py-6"
-          disabled={selectedTopics.length === 0}
+          disabled={selectedTopics.length === 0 || isSubmitting}
         >
-          Get Started
+          {isSubmitting ? "Saving..." : "Get Started"}
         </Button>
       </GlassCard>
     </div>

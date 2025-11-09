@@ -1,8 +1,10 @@
-from fastapi import APIRouter, status, Depends
+from datetime import UTC, datetime
+
 from dependencies import get_db_client
-from datetime import datetime, UTC
+from fastapi import APIRouter, Depends, status
 
 router = APIRouter()
+
 
 @router.get("/api/health", status_code=status.HTTP_200_OK)
 async def health_check(db=Depends(get_db_client)):
@@ -12,7 +14,7 @@ async def health_check(db=Depends(get_db_client)):
     """
     try:
         # Test database connection
-        db.command('ping')
+        db.command("ping")
 
         # Get collection stats
         articles_count = db.articles.count_documents({})
@@ -25,17 +27,10 @@ async def health_check(db=Depends(get_db_client)):
             "timestamp": datetime.now(UTC).isoformat(),
             "database": "connected",
             "collections": {
-                "articles": {
-                    "total": articles_count,
-                    "unprocessed": unprocessed_articles
-                },
+                "articles": {"total": articles_count, "unprocessed": unprocessed_articles},
                 "users": users_count,
-                "rss_feeds": rss_feeds_count
-            }
+                "rss_feeds": rss_feeds_count,
+            },
         }
     except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.now(UTC).isoformat()
-        }
+        return {"status": "unhealthy", "error": str(e), "timestamp": datetime.now(UTC).isoformat()}

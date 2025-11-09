@@ -4,9 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Settings as SettingsIcon, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { PreferencesDialog } from "@/components/PreferencesDialog";
+import { NotificationsDialog } from "@/components/NotificationsDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { getUser } from "@/lib/api";
 
 const Settings = () => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
@@ -15,6 +23,20 @@ const Settings = () => {
       document.documentElement.classList.toggle("dark", savedTheme === "dark");
     }
   }, []);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (user?.localAccountId) {
+        try {
+          const response = await getUser(user.localAccountId);
+          setUserData(response.data);
+        } catch (error) {
+          console.error("Failed to fetch user data:", error);
+        }
+      }
+    };
+    fetchUserData();
+  }, [user]);
 
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
@@ -25,11 +47,22 @@ const Settings = () => {
   };
 
   const handleEditPreferences = () => {
-    toast.info("Preferences editor coming soon!");
+    setPreferencesOpen(true);
   };
 
   const handleConfigureNotifications = () => {
-    toast.info("Notification settings coming soon!");
+    setNotificationsOpen(true);
+  };
+
+  const refreshUserData = async () => {
+    if (user?.localAccountId) {
+      try {
+        const response = await getUser(user.localAccountId);
+        setUserData(response.data);
+      } catch (error) {
+        console.error("Failed to refresh user data:", error);
+      }
+    }
   };
 
   return (
@@ -107,6 +140,27 @@ const Settings = () => {
           </GlassCard>
         </div>
       </ProtectedFeature>
+
+      <PreferencesDialog
+        open={preferencesOpen}
+        onOpenChange={setPreferencesOpen}
+        userId={user?.localAccountId}
+        currentTopics={userData?.topics || []}
+        currentNewsletterFormat={userData?.preferences?.newsletter_format || "concise"}
+        onSaveSuccess={refreshUserData}
+      />
+
+      <NotificationsDialog
+        open={notificationsOpen}
+        onOpenChange={setNotificationsOpen}
+        userId={user?.localAccountId}
+        currentSettings={{
+          emailNotifications: userData?.preferences?.email_notifications,
+          newsletterFrequency: userData?.preferences?.newsletter_frequency,
+          breakingNews: userData?.preferences?.breaking_news,
+        }}
+        onSaveSuccess={refreshUserData}
+      />
     </div>
   );
 };

@@ -14,6 +14,7 @@ interface Feed {
   id: string;
   url: string;
   title?: string;
+  category?: string; // Add category
 }
 
 const Feeds = () => {
@@ -21,6 +22,7 @@ const Feeds = () => {
   const [loading, setLoading] = useState(true);
   const [newFeedUrl, setNewFeedUrl] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(""); // New state for search term
   const { instance, accounts } = useMsal();
   const isAuthenticated = accounts.length > 0;
 
@@ -56,7 +58,7 @@ const Feeds = () => {
     }
 
     try {
-      await addRSSFeed(newFeedUrl);
+      await addRSSFeed(newFeedUrl); // Backend supports category, but not exposed in UI yet
       toast.success("Feed added successfully");
       setNewFeedUrl("");
       setDialogOpen(false);
@@ -86,6 +88,23 @@ const Feeds = () => {
       toast.error("Failed to delete feed");
     }
   };
+
+  // Filter feeds based on search term
+  const filteredFeeds = feeds.filter(
+    (feed) =>
+      feed.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      feed.url.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Group filtered feeds by category
+  const groupedFeeds = filteredFeeds.reduce((acc, feed) => {
+    const category = feed.category || "Uncategorized";
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(feed);
+    return acc;
+  }, {} as Record<string, Feed[]>);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -127,6 +146,14 @@ const Feeds = () => {
         </Dialog>
       </div>
 
+      {/* Search Input */}
+      <Input
+        placeholder="Search feeds by title or URL..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="glass-card border-border/50"
+      />
+
       <div className="space-y-4">
         {loading ? (
           <>
@@ -134,30 +161,39 @@ const Feeds = () => {
               <FeedSkeleton key={i} />
             ))}
           </>
-        ) : feeds.length === 0 ? (
+        ) : Object.keys(groupedFeeds).length === 0 ? (
           <GlassCard className="text-center py-12">
-            <p className="text-muted-foreground">No feeds added yet. Add your first feed to get started!</p>
+            <p className="text-muted-foreground">No feeds found. Try adjusting your search or add a new feed!</p>
           </GlassCard>
         ) : (
-          feeds.map((feed) => (
-            <GlassCard key={feed.id} hover>
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-foreground truncate">
-                    {feed.title || "Untitled Feed"}
-                  </h3>
-                  <p className="text-sm text-muted-foreground truncate">{feed.url}</p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDeleteFeed(feed.id)}
-                  className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </GlassCard>
+          Object.entries(groupedFeeds).map(([category, categoryFeeds]) => (
+            <div key={category} className="space-y-3">
+              <h2 className="text-xl font-semibold text-foreground mt-6">{category}</h2>
+              {categoryFeeds.map((feed) => (
+                <GlassCard key={feed.id} hover>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold text-foreground truncate">
+                        {feed.title || "Untitled Feed"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground truncate">
+                        <a href={feed.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          {feed.url}
+                        </a>
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteFeed(feed.id)}
+                      className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </GlassCard>
+              ))}
+            </div>
           ))
         )}
       </div>

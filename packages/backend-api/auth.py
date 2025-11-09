@@ -1,6 +1,7 @@
 import os
+
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi_azure_auth import SingleTenantAzureAuthorizationCodeBearer
 from pydantic import BaseModel
 
@@ -25,6 +26,7 @@ azure_scheme = SingleTenantAzureAuthorizationCodeBearer(
 
 class User(BaseModel):
     """Authenticated user model"""
+
     sub: str  # Subject (user ID)
     name: str | None = None
     email: str | None = None
@@ -32,9 +34,7 @@ class User(BaseModel):
     oid: str | None = None  # Object ID in Azure AD
 
 
-async def get_current_user(
-    auth: HTTPAuthorizationCredentials = Depends(azure_scheme)
-) -> User:
+async def get_current_user(auth: HTTPAuthorizationCredentials = Depends(azure_scheme)) -> User:
     """
     Dependency to get the current authenticated user.
 
@@ -65,9 +65,7 @@ async def get_current_user(
 http_bearer = HTTPBearer()
 
 
-async def verify_token(
-    credentials: HTTPAuthorizationCredentials = Depends(http_bearer)
-) -> dict:
+async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(http_bearer)) -> dict:
     """
     Alternative: Manual token verification without fastapi-azure-auth.
     Use this if you need custom validation logic.

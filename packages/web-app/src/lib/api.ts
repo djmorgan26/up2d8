@@ -25,6 +25,10 @@ export const deleteRSSFeed = (feedId: string) => api.delete(`/rss_feeds/${feedId
 export const getUser = (userId: string) => api.get(`/users/${userId}`);
 export const updateUser = (userId: string, data: any) => api.put(`/users/${userId}`, data);
 
+// Topics
+export const suggestTopics = (interests: string[] = [], query: string = "") =>
+  api.post("/topics/suggest", { interests, query });
+
 export const sendChatMessage = (sessionId: string, message: string) =>
   api.post(`/sessions/${sessionId}/messages`, { message });
 

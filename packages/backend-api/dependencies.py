@@ -1,12 +1,14 @@
 import os
+
+from dotenv import load_dotenv
 from pymongo import MongoClient
 from shared.key_vault_client import KeyVaultClient
-from dotenv import load_dotenv
 
 load_dotenv()
 
 _db_client = None
 _key_vault_client = None
+
 
 def get_key_vault_client() -> KeyVaultClient:
     """Get or create Key Vault client singleton"""
@@ -14,6 +16,7 @@ def get_key_vault_client() -> KeyVaultClient:
     if _key_vault_client is None:
         _key_vault_client = KeyVaultClient()
     return _key_vault_client
+
 
 def get_db_client():
     """Get or create MongoDB client singleton"""
@@ -37,6 +40,7 @@ def get_db_client():
         _db_client = client[database_name]
 
     return _db_client
+
 
 def get_gemini_api_key() -> str:
     """Get Gemini API key from environment or Key Vault"""
