@@ -2,11 +2,25 @@
 
 **Last Updated**: 2025-11-08
 **Project Type**: Monorepo (Backend API + Azure Functions + Mobile App + Web App)
-**Knowledge Items**: 2 features • 2 components • 1 pattern • 3 decisions
+**Knowledge Items**: 3 features • 2 components • 2 patterns • 3 decisions
 
 ---
 
 ## 🆕 Recent Changes
+
+### 2025-11-08 - Dashboard Overview & Data Transformation
+- ✅ **Added**: Dashboard overview feature with stats and prioritized content → [dashboard-overview.md](./knowledge/features/dashboard-overview.md)
+- 📊 **Implemented**: 4 stats cards (Total Articles, Active Feeds, New Today, Ask AI)
+- 🎯 **Added**: Featured Stories section (top 3 articles) and Recent Articles section (latest 6)
+- 🎨 **Created**: Enhanced empty state with CTA to add feeds
+- 🔧 **Fixed**: API response format - standardized `{data: [...]}` wrapper
+- 🏗️ **Implemented**: API data transformation pattern → [api-data-transformation.md](./knowledge/patterns/api-data-transformation.md)
+- 🔄 **Added**: Field mapping (link → url, summary → description, published → published_at)
+- 🌐 **Implemented**: Source extraction from URL domain (e.g., techcrunch.com → "Techcrunch")
+- 🆔 **Fixed**: Generated UUIDs for articles missing id field
+- 📱 **Added**: Responsive grid layouts (4 cols → 2 cols → 1 col)
+- 🔗 **Integrated**: Stats card links to Chat page for AI interaction
+- 📝 **Documented**: 4 key decisions, performance considerations, future ideas
 
 ### 2025-11-08 - AI Chat Integration
 - ✅ **Added**: AI chat feature with Google Gemini integration → [ai-chat-integration.md](./knowledge/features/ai-chat-integration.md)
@@ -79,23 +93,23 @@
 - [Documentation Style](./preferences/documentation-style.md) - Docs philosophy, formats, examples
 
 ### Knowledge Base (Grows over time)
-- [Features](./knowledge/features/) - **1 documented** - Cross-cutting features
+- [Features](./knowledge/features/) - **3 documented** - Cross-cutting features
 - [Frontend](./knowledge/frontend/) - **1 documented** - Web app components
 - [Backend Features](./knowledge/backend/) - **0 documented** - Backend API features
 - [Functions](./knowledge/functions/) - **0 documented** - Azure Functions features
 - [Mobile Features](./knowledge/mobile/) - **0 documented** - Mobile app features
 - [Components](./knowledge/components/) - **2 documented** - Shared components
-- [Patterns](./knowledge/patterns/) - **1 documented** - Coding patterns
+- [Patterns](./knowledge/patterns/) - **2 documented** - Coding patterns
 
 ---
 
 ## 📊 Project Stats
 
 - **Monorepo structure**: 4 packages (backend-api, functions, mobile-app, web-app) + shared
-- **Total knowledge files**: 14 (overview, architecture, 4 preferences, 3 decisions, 2 features, 2 components, 1 pattern)
-- **Features documented**: 2
+- **Total knowledge files**: 16 (overview, architecture, 4 preferences, 3 decisions, 3 features, 2 components, 2 patterns)
+- **Features documented**: 3
 - **Components documented**: 2
-- **Patterns captured**: 1
+- **Patterns captured**: 2
 - **Decisions recorded**: 3
 - **Personal preferences**: 4 (coding, errors, testing, docs)
 - **Tech Stack**:
@@ -130,7 +144,8 @@
 
 ## 🗺️ Knowledge Map
 
-### Features (2)
+### Features (3)
+- [Dashboard Overview](./knowledge/features/dashboard-overview.md) - Main landing page with stats cards, featured stories, and recent articles
 - [AI Chat Integration](./knowledge/features/ai-chat-integration.md) - Interactive chat with Google Gemini AI (2.5-flash) via web app
 - [Entra ID Authentication](./knowledge/features/entra-id-authentication.md) - Single sign-on with Microsoft Entra ID for web and API
 
@@ -138,7 +153,8 @@
 - [Azure Functions Architecture](./knowledge/components/azure-functions-architecture.md) - Serverless background tasks (6 functions: newsletters, crawling, health monitoring)
 - [Web App Frontend](./knowledge/frontend/web-app-structure.md) - React SPA with Vite, TypeScript, shadcn/ui (6 pages, 49 UI components)
 
-### Patterns (1)
+### Patterns (2)
+- [API Data Transformation Layer](./knowledge/patterns/api-data-transformation.md) - Transform database schema to frontend contract in API layer
 - [Azure Functions Local Development](./knowledge/patterns/azure-functions-local-dev.md) - Python 3.11 virtual environment + Azurite setup for local testing
 
 ### Decisions (3)
