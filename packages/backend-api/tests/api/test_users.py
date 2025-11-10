@@ -95,7 +95,14 @@ def test_update_user_success(test_client, mocker):
     mock_db_client.users = mock_users_collection  # Configure the mock db client
     mock_users_collection.update_one.return_value.matched_count = 1
 
+    # Mock authentication
+    from auth import User, get_current_user
+    from main import app
+
     user_id = "some_user_id"
+    mock_user = User(sub=user_id, email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
     response = client.put(
         f"/api/users/{user_id}",
         json={"topics": ["updated_topic"], "preferences": {"theme": "dark"}},
@@ -106,6 +113,8 @@ def test_update_user_success(test_client, mocker):
     assert mock_users_collection.update_one.call_args[0][0]["user_id"] == user_id
     assert "$set" in mock_users_collection.update_one.call_args[0][1]
 
+    app.dependency_overrides = {}
+
 
 def test_update_user_not_found(test_client, mocker):
     client, mock_db_client = test_client  # Unpack the fixture
@@ -113,11 +122,20 @@ def test_update_user_not_found(test_client, mocker):
     mock_db_client.users = mock_users_collection  # Configure the mock db client
     mock_users_collection.update_one.return_value.matched_count = 0
 
+    # Mock authentication
+    from auth import User, get_current_user
+    from main import app
+
     user_id = "non_existent_id"
+    mock_user = User(sub=user_id, email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
     response = client.put(f"/api/users/{user_id}", json={"topics": ["any_topic"]})
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found."
     mock_users_collection.update_one.assert_called_once()
+
+    app.dependency_overrides = {}
 
 
 def test_update_user_partial_update_topics(test_client, mocker):
@@ -126,7 +144,14 @@ def test_update_user_partial_update_topics(test_client, mocker):
     mock_db_client.users = mock_users_collection  # Configure the mock db client
     mock_users_collection.update_one.return_value.matched_count = 1
 
+    # Mock authentication
+    from auth import User, get_current_user
+    from main import app
+
     user_id = "some_user_id"
+    mock_user = User(sub=user_id, email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
     response = client.put(f"/api/users/{user_id}", json={"topics": ["only_topics"]})
     assert response.status_code == 200
     assert response.json()["message"] == "Preferences updated."
@@ -135,6 +160,8 @@ def test_update_user_partial_update_topics(test_client, mocker):
     assert "topics" in update_payload
     assert "preferences" not in update_payload
 
+    app.dependency_overrides = {}
+
 
 def test_update_user_partial_update_preferences(test_client, mocker):
     client, mock_db_client = test_client  # Unpack the fixture
@@ -142,7 +169,14 @@ def test_update_user_partial_update_preferences(test_client, mocker):
     mock_db_client.users = mock_users_collection  # Configure the mock db client
     mock_users_collection.update_one.return_value.matched_count = 1
 
+    # Mock authentication
+    from auth import User, get_current_user
+    from main import app
+
     user_id = "some_user_id"
+    mock_user = User(sub=user_id, email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
     response = client.put(f"/api/users/{user_id}", json={"preferences": {"lang": "en"}})
     assert response.status_code == 200
     assert response.json()["message"] == "Preferences updated."
@@ -151,14 +185,25 @@ def test_update_user_partial_update_preferences(test_client, mocker):
     assert "preferences" in update_payload
     assert "topics" not in update_payload
 
+    app.dependency_overrides = {}
+
 
 def test_update_user_no_fields_to_update(test_client, mocker):
     client, mock_db_client = test_client  # Unpack the fixture
     mock_users_collection = MagicMock()
     mock_db_client.users = mock_users_collection  # Configure the mock db client
 
+    # Mock authentication
+    from auth import User, get_current_user
+    from main import app
+
     user_id = "some_user_id"
+    mock_user = User(sub=user_id, email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
     response = client.put(f"/api/users/{user_id}", json={})
     assert response.status_code == 400
     assert response.json()["detail"] == "No fields to update provided."
     mock_users_collection.update_one.assert_not_called()
+
+    app.dependency_overrides = {}

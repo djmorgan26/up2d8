@@ -1,11 +1,10 @@
 import os
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pymongo
 import pytest
 from dependencies import get_db_client
 from fastapi.testclient import TestClient
-from main import app
 
 
 @pytest.fixture(scope="session")
@@ -39,8 +38,20 @@ def real_mongo_db():
 
 @pytest.fixture(scope="function")
 def test_client():
-    mock_db_client = MagicMock()
-    app.dependency_overrides[get_db_client] = lambda: mock_db_client
-    with TestClient(app) as client:
-        yield client, mock_db_client  # Yield both client and mock_db_client
-    app.dependency_overrides = {}  # Clear overrides after tests
+    """
+    Provides a test client with mocked database and Azure authentication.
+
+    Mocks Azure OpenID configuration loading to prevent external network calls during tests.
+    """
+    # Mock Azure auth at the point where it's called (in the lifespan function)
+    with patch('auth.azure_scheme.openid_config.load_config', new_callable=AsyncMock):
+        # Import app inside the patch context to avoid startup errors
+        from main import app
+
+        mock_db_client = MagicMock()
+        app.dependency_overrides[get_db_client] = lambda: mock_db_client
+
+        with TestClient(app) as client:
+            yield client, mock_db_client  # Yield both client and mock_db_client
+
+        app.dependency_overrides = {}  # Clear overrides after tests

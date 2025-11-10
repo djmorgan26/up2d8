@@ -5,6 +5,7 @@ def test_chat_endpoint(test_client, mocker):
     """Test basic chat endpoint with no sources"""
     client, _ = test_client  # Unpack the fixture, _ for unused mock_db_client
 
+    # Mock Gemini client
     mock_client = MagicMock()
     mock_response = MagicMock()
     mock_response.text = "Mocked Gemini Response"
@@ -12,7 +13,12 @@ def test_chat_endpoint(test_client, mocker):
     mock_client.models.generate_content.return_value = mock_response
 
     mocker.patch("api.chat.genai.Client", return_value=mock_client)
-    mocker.patch("api.chat.get_gemini_api_key", return_value="fake_api_key")
+
+    # Override the FastAPI dependency for Gemini API key
+    from dependencies import get_gemini_api_key
+    from main import app
+
+    app.dependency_overrides[get_gemini_api_key] = lambda: "fake_api_key"
 
     response = client.post("/api/chat", json={"prompt": "Hello Gemini"})
     assert response.status_code == 200
@@ -21,6 +27,9 @@ def test_chat_endpoint(test_client, mocker):
     assert data["model"] == "gemini-2.5-flash"
     assert data["reply"] == "Mocked Gemini Response"
     assert data["sources"] == []
+
+    # Clean up
+    app.dependency_overrides = {}
 
 
 def test_chat_endpoint_with_sources(test_client, mocker):
@@ -49,7 +58,12 @@ def test_chat_endpoint_with_sources(test_client, mocker):
     mock_client.models.generate_content.return_value = mock_response
 
     mocker.patch("api.chat.genai.Client", return_value=mock_client)
-    mocker.patch("api.chat.get_gemini_api_key", return_value="fake_api_key")
+
+    # Override the FastAPI dependency for Gemini API key
+    from dependencies import get_gemini_api_key
+    from main import app
+
+    app.dependency_overrides[get_gemini_api_key] = lambda: "fake_api_key"
 
     response = client.post("/api/chat", json={"prompt": "What's new in AI?"})
     assert response.status_code == 200
@@ -59,14 +73,34 @@ def test_chat_endpoint_with_sources(test_client, mocker):
     assert data["sources"][0]["web"]["uri"] == "https://example.com/article"
     assert data["sources"][0]["web"]["title"] == "Example Article Title"
 
+    # Clean up
+    app.dependency_overrides = {}
 
-def test_chat_endpoint_empty_prompt(test_client):
+
+def test_chat_endpoint_empty_prompt(test_client, mocker):
     """Test chat endpoint rejects empty prompt"""
     client, _ = test_client
+
+    # Mock Gemini in case it tries to process
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.text = "Response"
+    mock_response.candidates = []
+    mock_client.models.generate_content.return_value = mock_response
+    mocker.patch("api.chat.genai.Client", return_value=mock_client)
+
+    # Override the FastAPI dependency for Gemini API key
+    from dependencies import get_gemini_api_key
+    from main import app
+
+    app.dependency_overrides[get_gemini_api_key] = lambda: "fake_api_key"
 
     response = client.post("/api/chat", json={"prompt": ""})
     # FastAPI validation should catch this
     assert response.status_code in [200, 422]  # May pass validation but fail in processing
+
+    # Clean up
+    app.dependency_overrides = {}
 
 
 def test_chat_endpoint_long_prompt(test_client, mocker):
@@ -80,11 +114,19 @@ def test_chat_endpoint_long_prompt(test_client, mocker):
     mock_client.models.generate_content.return_value = mock_response
 
     mocker.patch("api.chat.genai.Client", return_value=mock_client)
-    mocker.patch("api.chat.get_gemini_api_key", return_value="fake_api_key")
+
+    # Override the FastAPI dependency for Gemini API key
+    from dependencies import get_gemini_api_key
+    from main import app
+
+    app.dependency_overrides[get_gemini_api_key] = lambda: "fake_api_key"
 
     long_prompt = "What is AI? " * 500  # Very long prompt
     response = client.post("/api/chat", json={"prompt": long_prompt})
     assert response.status_code == 200
+
+    # Clean up
+    app.dependency_overrides = {}
 
 
 def test_chat_endpoint_gemini_api_error(test_client, mocker):
@@ -95,27 +137,44 @@ def test_chat_endpoint_gemini_api_error(test_client, mocker):
     mock_client.models.generate_content.side_effect = Exception("API rate limit exceeded")
 
     mocker.patch("api.chat.genai.Client", return_value=mock_client)
-    mocker.patch("api.chat.get_gemini_api_key", return_value="fake_api_key")
+
+    # Override the FastAPI dependency for Gemini API key
+    from dependencies import get_gemini_api_key
+    from main import app
+
+    app.dependency_overrides[get_gemini_api_key] = lambda: "fake_api_key"
 
     response = client.post("/api/chat", json={"prompt": "Hello"})
     assert response.status_code == 500
     assert "Gemini API error" in response.json()["detail"]
 
+    # Clean up
+    app.dependency_overrides = {}
 
-def test_chat_endpoint_invalid_request():
+
+def test_chat_endpoint_invalid_request(mocker):
     """Test chat endpoint validation"""
-    from fastapi.testclient import TestClient
-    from main import app
+    # Mock Azure auth to avoid startup issues
+    with mocker.patch('auth.azure_scheme.openid_config.load_config', new_callable=MagicMock):
+        from fastapi.testclient import TestClient
+        from main import app
+        from dependencies import get_gemini_api_key
 
-    client = TestClient(app)
+        # Override Gemini API key dependency
+        app.dependency_overrides[get_gemini_api_key] = lambda: "fake_api_key"
 
-    # Missing prompt field
-    response = client.post("/api/chat", json={})
-    assert response.status_code == 422
+        client = TestClient(app)
 
-    # Wrong data type
-    response = client.post("/api/chat", json={"prompt": 123})
-    assert response.status_code == 422
+        # Missing prompt field
+        response = client.post("/api/chat", json={})
+        assert response.status_code == 422
+
+        # Wrong data type
+        response = client.post("/api/chat", json={"prompt": 123})
+        assert response.status_code == 422
+
+        # Clean up
+        app.dependency_overrides = {}
 
 
 def test_create_session(test_client, mocker):
