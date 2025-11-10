@@ -1,6 +1,25 @@
 name: Deploy Backend API
 
 on:
+  # Automatic deployment when code is pushed to main
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/backend-api/**'
+      - 'packages/shared/**'
+      - '.github/workflows/up2d8-backend.yml'
+
+  # Automatic deployment on PR to main (for testing)
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'packages/backend-api/**'
+      - 'packages/shared/**'
+      - '.github/workflows/up2d8-backend.yml'
+
+  # Manual deployment option
   workflow_dispatch:
     inputs:
       environment:
