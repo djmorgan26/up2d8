@@ -105,6 +105,19 @@ async def update_user(
     return {"message": "Preferences updated.", "user_id": authenticated_user_id}
 
 
+@router.get("/api/users/me", status_code=status.HTTP_200_OK)
+async def get_current_user_info(db=Depends(get_db_client), user: User = Depends(get_current_user)):
+    """
+    Get the authenticated user's information.
+    This is the preferred endpoint for getting the current user's data.
+    """
+    users_collection = db.users
+    user_data = users_collection.find_one({"user_id": user.sub}, {"_id": 0})
+    if not user_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+    return user_data
+
+
 @router.get("/api/users/{user_id}", status_code=status.HTTP_200_OK)
 async def get_user(
     user_id: str, db=Depends(get_db_client), user: User = Depends(get_current_user)
