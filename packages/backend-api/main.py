@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from api import (
     analytics,
@@ -16,15 +17,33 @@ from api import (
 from auth import azure_scheme
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from logging_config import configure_logging
+from middleware.logging_middleware import RequestLoggingMiddleware
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Load the OpenID configuration on startup.
+    Application lifespan manager.
+
+    Runs on startup:
+    - Configure structured logging
+    - Load Azure OpenID configuration
     """
+    # Configure logging first
+    configure_logging(log_level="INFO", enable_structured=True)
+    logger.info("UP2D8 Backend API starting up")
+
+    # Load Azure OpenID configuration
     await azure_scheme.openid_config.load_config()
+    logger.info("Azure authentication configured")
+
     yield
+
+    # Shutdown
+    logger.info("UP2D8 Backend API shutting down")
 
 
 app = FastAPI(
@@ -43,6 +62,13 @@ app = FastAPI(
         {"name": "Analytics", "description": "Event tracking and analytics"},
         {"name": "Feedback", "description": "User feedback collection"},
     ],
+)
+
+# Request logging middleware (logs all requests/responses with timing)
+# Exclude health check and root endpoints to reduce noise
+app.add_middleware(
+    RequestLoggingMiddleware,
+    exclude_paths=["/", "/api/health"]
 )
 
 # CORS configuration
