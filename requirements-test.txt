@@ -1,0 +1,35 @@
+# Testing dependencies for UP2D8 monorepo
+# Install with: pip install -r requirements-test.txt
+
+# Core testing framework
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+pytest-timeout>=2.2.0
+pytest-xdist>=3.5.0  # For parallel test execution
+
+# HTTP testing
+requests>=2.31.0
+httpx>=0.26.0  # For async HTTP testing
+
+# Mocking and fixtures
+pytest-mock>=3.12.0
+responses>=0.24.0  # For mocking HTTP requests
+
+# Database testing
+pymongo>=4.6.0
+mongomock>=4.1.2  # For mocking MongoDB
+
+# Azure SDK for testing
+azure-identity>=1.15.0
+azure-keyvault-secrets>=4.7.0
+
+# Environment and configuration
+python-dotenv>=1.0.0
+
+# Code quality and linting (optional)
+# pytest-pylint>=0.21.0
+# pytest-flake8>=1.1.1
+
+# Test reporting
+pytest-html>=4.1.0  # HTML test reports
