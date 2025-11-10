@@ -1,0 +1,21 @@
+{
+  "name": "@up2d8/shared-api",
+  "version": "1.0.0",
+  "description": "Shared API client for UP2D8",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": ["api", "client", "shared"],
+  "author": "UP2D8",
+  "license": "MIT",
+  "dependencies": {
+    "@up2d8/shared-types": "1.0.0",
+    "axios": "^1.7.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
