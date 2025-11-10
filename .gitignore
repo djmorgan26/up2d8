@@ -220,9 +220,11 @@ __azurite_db*__.json
 # (Files that SHOULD be committed)
 # ============================================
 
-# Keep example env files
+# Keep example env files and mode-specific configs (no secrets)
 !.env.example
 !.env.template
+!**/.env.development
+!**/.env.production
 
 # Keep requirements files
 !requirements.txt
