@@ -1,0 +1,17 @@
+{
+  "name": "@up2d8/shared-types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types and interfaces for UP2D8",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": ["types", "typescript", "shared"],
+  "author": "UP2D8",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
