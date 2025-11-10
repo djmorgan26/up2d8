@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 from api import (
@@ -45,17 +46,20 @@ app = FastAPI(
     ],
 )
 
-# CORS configuration
-# Production: Specify exact origins for security
-# Development: Use * for local testing
+# CORS configuration - use environment variable for production URL
+frontend_url = os.getenv("AZURE-FRONTEND-APP-URL", "")
+allowed_origins = [
+    "http://localhost:5173",  # Local Vite dev server
+    "http://localhost:8080",  # Local Vite alternative port
+]
+
+# Add production frontend URL if configured
+if frontend_url:
+    allowed_origins.append(frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Local Vite dev server
-        "http://localhost:8080",  # Local Vite alternative port
-        "https://gray-wave-00bdfc60f.3.azurestaticapps.net",  # Production Static Web App
-        # Add custom domain here if configured later
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
