@@ -1,38 +1,31 @@
 /**
  * Root Navigator
  * Main navigation container for the app
- * Phase 2: Showing component showcase
+ * Phase 3: Tab navigation with all main screens
  */
 
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {useTheme} from '@context/ThemeContext';
-import ComponentShowcase from '@screens/ComponentShowcase';
-
-const Stack = createNativeStackNavigator();
+import {TabNavigator} from './TabNavigator';
 
 export default function RootNavigator() {
   const {theme} = useTheme();
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: theme.colors.primary,
-          },
-          headerTintColor: '#FFFFFF',
-          headerTitleStyle: {
-            fontWeight: '600',
-          },
-        }}>
-        <Stack.Screen
-          name="ComponentShowcase"
-          component={ComponentShowcase}
-          options={{title: 'UP2D8 Components'}}
-        />
-      </Stack.Navigator>
+    <NavigationContainer
+      theme={{
+        dark: theme.colors.background === '#0F0F14',
+        colors: {
+          primary: theme.colors.primary,
+          background: theme.colors.background,
+          card: theme.colors.card,
+          text: theme.colors.textPrimary,
+          border: theme.colors.border,
+          notification: theme.colors.accent,
+        },
+      }}>
+      <TabNavigator />
     </NavigationContainer>
   );
 }
