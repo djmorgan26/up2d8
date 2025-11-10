@@ -207,3 +207,253 @@ def test_update_user_no_fields_to_update(test_client, mocker):
     mock_users_collection.update_one.assert_not_called()
 
     app.dependency_overrides = {}
+
+
+def test_get_current_user_info(test_client):
+    """Test GET /api/users/me endpoint."""
+    client, mock_db_client = test_client
+    mock_users_collection = MagicMock()
+    mock_db_client.users = mock_users_collection
+
+    # Mock user data in database
+    mock_users_collection.find_one.return_value = {
+        "user_id": "test_user_123",
+        "email": "test@example.com",
+        "topics": ["AI", "Tech"],
+        "preferences": {"theme": "dark"},
+        "created_at": "2025-01-01T00:00:00Z"
+    }
+
+    # Mock authentication
+    mock_user = User(sub="test_user_123", email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    response = client.get("/api/users/me")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["user_id"] == "test_user_123"
+    assert data["email"] == "test@example.com"
+    assert data["topics"] == ["AI", "Tech"]
+    assert data["preferences"] == {"theme": "dark"}
+
+    app.dependency_overrides = {}
+
+
+def test_get_current_user_info_not_in_db(test_client):
+    """Test GET /api/users/me when user is authenticated but not in database."""
+    client, mock_db_client = test_client
+    mock_users_collection = MagicMock()
+    mock_db_client.users = mock_users_collection
+
+    # User not found in database
+    mock_users_collection.find_one.return_value = None
+
+    # Mock authentication
+    mock_user = User(sub="new_user_123", email="new@example.com", name="New User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    response = client.get("/api/users/me")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["user_id"] == "new_user_123"
+    assert data["email"] == "new@example.com"
+    assert data["topics"] == []
+    assert data["preferences"] == {}
+    assert data["created_at"] is None
+
+    app.dependency_overrides = {}
+
+
+def test_update_user_preferences(test_client):
+    """Test PATCH /api/users/me/preferences endpoint."""
+    client, mock_db_client = test_client
+    mock_users_collection = MagicMock()
+    mock_db_client.users = mock_users_collection
+    mock_users_collection.update_one.return_value.matched_count = 1
+
+    # Mock authentication
+    mock_user = User(sub="test_user_123", email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    response = client.patch(
+        "/api/users/me/preferences",
+        json={"preferences": {"theme": "light", "language": "en"}}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "Preferences updated successfully."
+    mock_users_collection.update_one.assert_called_once()
+
+    # Verify the update call
+    update_filter = mock_users_collection.update_one.call_args[0][0]
+    update_data = mock_users_collection.update_one.call_args[0][1]
+    assert update_filter["user_id"] == "test_user_123"
+    assert update_data["$set"]["preferences"] == {"theme": "light", "language": "en"}
+
+    app.dependency_overrides = {}
+
+
+def test_update_user_preferences_not_found(test_client):
+    """Test PATCH /api/users/me/preferences when user not found."""
+    client, mock_db_client = test_client
+    mock_users_collection = MagicMock()
+    mock_db_client.users = mock_users_collection
+    mock_users_collection.update_one.return_value.matched_count = 0
+
+    # Mock authentication
+    mock_user = User(sub="test_user_123", email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    response = client.patch(
+        "/api/users/me/preferences",
+        json={"preferences": {"theme": "light"}}
+    )
+
+    assert response.status_code == 404
+    assert "User not found" in response.json()["detail"]
+
+    app.dependency_overrides = {}
+
+
+def test_add_topic(test_client):
+    """Test POST /api/users/me/topics endpoint."""
+    client, mock_db_client = test_client
+    mock_users_collection = MagicMock()
+    mock_db_client.users = mock_users_collection
+    mock_users_collection.update_one.return_value.matched_count = 1
+
+    # Mock authentication
+    mock_user = User(sub="test_user_123", email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    response = client.post(
+        "/api/users/me/topics",
+        json={"topic": "Machine Learning"}
+    )
+
+    assert response.status_code == 200
+    assert "Machine Learning" in response.json()["message"]
+    mock_users_collection.update_one.assert_called_once()
+
+    # Verify the update call uses $addToSet
+    update_filter = mock_users_collection.update_one.call_args[0][0]
+    update_data = mock_users_collection.update_one.call_args[0][1]
+    assert update_filter["user_id"] == "test_user_123"
+    assert update_data["$addToSet"]["topics"] == "Machine Learning"
+
+    app.dependency_overrides = {}
+
+
+def test_add_topic_user_not_found(test_client):
+    """Test POST /api/users/me/topics when user not found."""
+    client, mock_db_client = test_client
+    mock_users_collection = MagicMock()
+    mock_db_client.users = mock_users_collection
+    mock_users_collection.update_one.return_value.matched_count = 0
+
+    # Mock authentication
+    mock_user = User(sub="test_user_123", email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    response = client.post(
+        "/api/users/me/topics",
+        json={"topic": "Machine Learning"}
+    )
+
+    assert response.status_code == 404
+    assert "User not found" in response.json()["detail"]
+
+    app.dependency_overrides = {}
+
+
+def test_remove_topic(test_client):
+    """Test DELETE /api/users/me/topics endpoint."""
+    client, mock_db_client = test_client
+    mock_users_collection = MagicMock()
+    mock_db_client.users = mock_users_collection
+    mock_users_collection.update_one.return_value.matched_count = 1
+
+    # Mock authentication
+    mock_user = User(sub="test_user_123", email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    response = client.delete("/api/users/me/topics/Old%20Topic")
+
+    assert response.status_code == 200
+    assert "Old Topic" in response.json()["message"]
+    mock_users_collection.update_one.assert_called_once()
+
+    # Verify the update call uses $pull
+    update_filter = mock_users_collection.update_one.call_args[0][0]
+    update_data = mock_users_collection.update_one.call_args[0][1]
+    assert update_filter["user_id"] == "test_user_123"
+    assert update_data["$pull"]["topics"] == "Old Topic"
+
+    app.dependency_overrides = {}
+
+
+def test_delete_user_own_account(test_client):
+    """Test DELETE /api/users/{user_id} - user deletes their own account."""
+    client, mock_db_client = test_client
+    mock_users_collection = MagicMock()
+    mock_db_client.users = mock_users_collection
+    mock_users_collection.delete_one.return_value.deleted_count = 1
+
+    # Mock authentication
+    user_id = "test_user_123"
+    mock_user = User(sub=user_id, email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    response = client.delete(f"/api/users/{user_id}")
+
+    assert response.status_code == 200
+    assert "deleted successfully" in response.json()["message"]
+    mock_users_collection.delete_one.assert_called_once()
+
+    # Verify correct user was deleted
+    delete_filter = mock_users_collection.delete_one.call_args[0][0]
+    assert delete_filter["user_id"] == user_id
+
+    app.dependency_overrides = {}
+
+
+def test_delete_user_forbidden(test_client):
+    """Test DELETE /api/users/{user_id} - user tries to delete another user's account."""
+    client, mock_db_client = test_client
+    mock_users_collection = MagicMock()
+    mock_db_client.users = mock_users_collection
+
+    # Mock authentication - authenticated as user_123
+    mock_user = User(sub="user_123", email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    # Try to delete different user (user_456)
+    response = client.delete("/api/users/user_456")
+
+    assert response.status_code == 403
+    assert "only delete your own account" in response.json()["detail"]
+    mock_users_collection.delete_one.assert_not_called()
+
+    app.dependency_overrides = {}
+
+
+def test_delete_user_not_found(test_client):
+    """Test DELETE /api/users/{user_id} - user not found in database."""
+    client, mock_db_client = test_client
+    mock_users_collection = MagicMock()
+    mock_db_client.users = mock_users_collection
+    mock_users_collection.delete_one.return_value.deleted_count = 0
+
+    # Mock authentication
+    user_id = "test_user_123"
+    mock_user = User(sub=user_id, email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    response = client.delete(f"/api/users/{user_id}")
+
+    assert response.status_code == 404
+    assert "User not found" in response.json()["detail"]
+
+    app.dependency_overrides = {}
