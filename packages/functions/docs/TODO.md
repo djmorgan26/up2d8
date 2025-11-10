@@ -10,7 +10,7 @@ This document tracks the planned improvements and further development for the UP
 
 -   **HTML Conversion for Newsletters:** (Completed) Converted Markdown output from Gemini into proper HTML before sending the email.
 
--   **Retry Mechanisms:** Implement more robust retry policies with exponential backoff for external API calls (Gemini, SMTP, Cosmos DB) to improve reliability.
+-   ✅ **Retry Mechanisms:** ~~Implement more robust retry policies with exponential backoff for external API calls (Gemini, SMTP, Cosmos DB) to improve reliability.~~ **COMPLETED** - Added comprehensive retry utilities with exponential backoff and jitter to RSS feed parsing and Google Search API calls in orchestration logic. See `shared/retry_utils.py`.
 
 ## Medium Priority (Enhancements/Refinements)
 

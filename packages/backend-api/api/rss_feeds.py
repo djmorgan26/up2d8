@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, HttpUrl
 from google import genai
 from google.genai import types
+from shared.retry_utils import retry_with_backoff
 
 router = APIRouter(tags=["RSS Feeds"])
 logger = logging.getLogger(__name__)
@@ -66,7 +67,12 @@ async def create_rss_feed(feed: RssFeedCreate, db=Depends(get_db_client)):
     feed_title = feed.title # Prioritize title from the request
     if not feed_title: # If title not provided, try to fetch it
         try:
-            parsed_feed = feedparser.parse(str(feed.url))
+            # Parse RSS feed with retry logic for network failures
+            @retry_with_backoff(max_attempts=3, base_delay=1.0, max_delay=10.0)
+            def _parse_feed_with_retry():
+                return feedparser.parse(str(feed.url))
+
+            parsed_feed = _parse_feed_with_retry()
             if parsed_feed.feed and hasattr(parsed_feed.feed, "title"):
                 feed_title = parsed_feed.feed.title
         except Exception as e:
@@ -118,11 +124,16 @@ async def suggest_rss_feeds(request: RssFeedSuggestRequest, api_key: str = Depen
         # The prompt should clearly ask the LLM to find RSS feeds and format the output
         llm_prompt = f"Find RSS feeds related to: {request.query}. Provide the results as a JSON array of objects with 'title', 'url', and 'category' keys."
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=llm_prompt,
-            config=config
-        )
+        # Call Gemini with retry logic for transient failures
+        @retry_with_backoff(max_attempts=3, base_delay=2.0, max_delay=30.0)
+        def _generate_rss_suggestions_with_retry():
+            return client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=llm_prompt,
+                config=config
+            )
+
+        response = _generate_rss_suggestions_with_retry()
 
         # Attempt to parse the LLM's response as JSON
         try:

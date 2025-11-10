@@ -7,6 +7,7 @@ from google.genai import types
 from dependencies import get_db_client, get_gemini_api_key
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from shared.retry_utils import retry_with_backoff
 
 router = APIRouter(tags=["Chat"])
 logger = logging.getLogger(__name__)
@@ -57,12 +58,16 @@ async def chat(request: ChatRequest, api_key: str = Depends(get_gemini_api_key))
             tools=[types.Tool(google_search=types.GoogleSearch())]
         )
 
-        # Generate content with web search grounding
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=request.prompt,
-            config=config
-        )
+        # Generate content with web search grounding (with retry logic for transient failures)
+        @retry_with_backoff(max_attempts=3, base_delay=2.0, max_delay=30.0)
+        def _generate_with_retry():
+            return client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=request.prompt,
+                config=config
+            )
+
+        response = _generate_with_retry()
 
         # Extract sources from grounding metadata
         sources = []

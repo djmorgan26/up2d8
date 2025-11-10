@@ -3,6 +3,7 @@ import pymongo
 import feedparser
 from langchain_community.utilities import GoogleSearchAPIWrapper
 from shared.key_vault_client import get_secret_client
+from shared.retry_utils import retry_with_backoff
 import structlog
 
 logger = structlog.get_logger()
@@ -39,7 +40,12 @@ def find_new_articles() -> list[str]:
             
             logger.info("Parsing RSS feed", url=feed_url)
             try:
-                parsed_feed = feedparser.parse(feed_url)
+                # Parse RSS feed with retry logic for network failures
+                @retry_with_backoff(max_attempts=3, base_delay=1.0, max_delay=10.0)
+                def _parse_feed_with_retry():
+                    return feedparser.parse(feed_url)
+
+                parsed_feed = _parse_feed_with_retry()
                 for entry in parsed_feed.entries:
                     if hasattr(entry, 'link'):
                         all_found_urls.add(entry.link)
@@ -70,7 +76,12 @@ def find_new_articles() -> list[str]:
                 for topic in all_topics:
                     logger.info("Searching for articles via Google Search", topic=topic)
                     try:
-                        search_results = search.results(f"latest articles about {topic}", num_results=5)
+                        # Google Search with retry logic for API rate limits
+                        @retry_with_backoff(max_attempts=3, base_delay=2.0, max_delay=30.0)
+                        def _search_with_retry():
+                            return search.results(f"latest articles about {topic}", num_results=5)
+
+                        search_results = _search_with_retry()
                         for res in search_results:
                             if "link" in res:
                                 all_found_urls.add(res["link"])

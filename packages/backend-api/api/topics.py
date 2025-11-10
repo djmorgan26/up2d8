@@ -4,6 +4,7 @@ from google import genai
 from dependencies import get_gemini_api_key
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
+from shared.retry_utils import retry_with_backoff
 
 router = APIRouter(tags=["Topics"])
 logger = logging.getLogger(__name__)
@@ -46,10 +47,15 @@ async def suggest_topics(request: TopicSuggestRequest):
             prompt = """Suggest 8 popular news topics that most people would be interested in following.
             Return ONLY the topic names as a comma-separated list, no explanations or numbering."""
 
-        response = client.models.generate_content(
-            model="gemini-2.0-flash-exp",
-            contents=prompt
-        )
+        # Call Gemini with retry logic for transient failures
+        @retry_with_backoff(max_attempts=3, base_delay=2.0, max_delay=30.0)
+        def _generate_topics_with_retry():
+            return client.models.generate_content(
+                model="gemini-2.0-flash-exp",
+                contents=prompt
+            )
+
+        response = _generate_topics_with_retry()
         suggestions_text = response.text.strip()
 
         # Parse comma-separated suggestions

@@ -32,7 +32,8 @@ This document outlines tasks that need to be completed or further developed for 
 ## High Priority (Existing Items - to be addressed in Phase 1)
 
 -   **Implement full API endpoint logic:** Ensure all described API endpoints (`/api/users`, `/api/chat`, `/api/feedback`, `/api/analytics`, `/api/users/{user_id}/sessions`, `/api/sessions/{session_id}/messages`) have complete and robust business logic, including data validation and error handling.
--   **Comprehensive Unit and Integration Tests:** Develop a comprehensive suite of unit and integration tests to ensure the reliability and correctness of all API endpoints and core functionalities.
+-   ✅ **Comprehensive Unit and Integration Tests:** ~~Develop a comprehensive suite of unit and integration tests to ensure the reliability and correctness of all API endpoints and core functionalities.~~ **COMPLETED** - 53 comprehensive tests covering all 9 API endpoint groups with 100% pass rate. See `tests/README.md` for details.
+-   ✅ **Retry Logic for External APIs:** ~~Implement retry mechanisms with exponential backoff for external API calls (Gemini, RSS feeds, database operations).~~ **COMPLETED** - Added retry utilities with exponential backoff and jitter to all Gemini API calls, RSS feed parsing, and external API interactions. See `shared/retry_utils.py`.
 -   **Input Validation and Error Handling:** Implement thorough input validation for all API endpoints and robust error handling mechanisms to provide meaningful error responses to clients.
 -   **Authentication and Authorization:** Fully implement and test authentication and authorization mechanisms for all protected endpoints. (Currently, `GEMINI.md` mentions Azure Managed Identity, but the implementation details for API access control are not fully clear).
 
