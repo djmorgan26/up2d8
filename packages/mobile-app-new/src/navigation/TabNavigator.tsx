@@ -1,6 +1,6 @@
 /**
  * Bottom Tab Navigator
- * Main navigation with glassmorphism tab bar
+ * Main navigation with glassmorphism tab bar and stack navigators
  */
 
 import React from 'react';
@@ -8,21 +8,12 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {Home, Rss, MessageSquare, Settings} from 'lucide-react-native';
 import {useTheme} from '@context/ThemeContext';
 
-// Screens
-import DashboardScreen from '@screens/Dashboard';
-import FeedsScreen from '@screens/Feeds';
-import ChatScreen from '@screens/Chat';
-import SettingsScreen from '@screens/Settings';
+// Stack Navigators
+import {HomeStack, FeedsStack, ChatStack, SettingsStack} from './stacks';
 
 // Custom tab bar
 import {GlassTabBar} from './GlassTabBar';
-
-export type TabParamList = {
-  Dashboard: undefined;
-  Feeds: undefined;
-  Chat: undefined;
-  Settings: undefined;
-};
+import type {TabParamList} from './types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
@@ -39,7 +30,7 @@ export function TabNavigator() {
       }}>
       <Tab.Screen
         name="Dashboard"
-        component={DashboardScreen}
+        component={HomeStack}
         options={{
           tabBarIcon: ({color, size}) => <Home size={size} color={color} />,
           tabBarLabel: 'Home',
@@ -47,7 +38,7 @@ export function TabNavigator() {
       />
       <Tab.Screen
         name="Feeds"
-        component={FeedsScreen}
+        component={FeedsStack}
         options={{
           tabBarIcon: ({color, size}) => <Rss size={size} color={color} />,
           tabBarLabel: 'Feeds',
@@ -55,7 +46,7 @@ export function TabNavigator() {
       />
       <Tab.Screen
         name="Chat"
-        component={ChatScreen}
+        component={ChatStack}
         options={{
           tabBarIcon: ({color, size}) => (
             <MessageSquare size={size} color={color} />
@@ -65,7 +56,7 @@ export function TabNavigator() {
       />
       <Tab.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsStack}
         options={{
           tabBarIcon: ({color, size}) => <Settings size={size} color={color} />,
           tabBarLabel: 'Settings',

@@ -9,40 +9,68 @@ import type {
   NavigatorScreenParams,
 } from '@react-navigation/native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {Article} from '@up2d8/shared-types';
 
-// Tab navigator params
-export type TabParamList = {
-  Dashboard: undefined;
-  Feeds: undefined;
-  Chat: undefined;
-  Settings: undefined;
+// Stack navigator params for each tab
+export type HomeStackParamList = {
+  DashboardMain: undefined;
+  ArticleDetail: {
+    article: Article;
+  };
 };
 
-// Root navigator params (for future stack navigators)
+export type FeedsStackParamList = {
+  FeedsMain: undefined;
+  // Future: AddFeed, EditFeed
+};
+
+export type ChatStackParamList = {
+  ChatMain: undefined;
+};
+
+export type SettingsStackParamList = {
+  SettingsMain: undefined;
+  // Future: Account, Notifications, Privacy
+};
+
+// Tab navigator params (now with stack navigators)
+export type TabParamList = {
+  Dashboard: NavigatorScreenParams<HomeStackParamList>;
+  Feeds: NavigatorScreenParams<FeedsStackParamList>;
+  Chat: NavigatorScreenParams<ChatStackParamList>;
+  Settings: NavigatorScreenParams<SettingsStackParamList>;
+};
+
+// Root navigator params
 export type RootStackParamList = {
   Main: NavigatorScreenParams<TabParamList>;
-  // Future: ArticleDetail, FeedDetail, etc.
+  // Future: Onboarding, Auth flows
 };
 
 // Navigation props for each screen
 export type DashboardScreenProps = CompositeScreenProps<
-  BottomTabScreenProps<TabParamList, 'Dashboard'>,
-  NativeStackScreenProps<RootStackParamList>
+  NativeStackScreenProps<HomeStackParamList, 'DashboardMain'>,
+  BottomTabScreenProps<TabParamList>
+>;
+
+export type ArticleDetailScreenProps = CompositeScreenProps<
+  NativeStackScreenProps<HomeStackParamList, 'ArticleDetail'>,
+  BottomTabScreenProps<TabParamList>
 >;
 
 export type FeedsScreenProps = CompositeScreenProps<
-  BottomTabScreenProps<TabParamList, 'Feeds'>,
-  NativeStackScreenProps<RootStackParamList>
+  NativeStackScreenProps<FeedsStackParamList, 'FeedsMain'>,
+  BottomTabScreenProps<TabParamList>
 >;
 
 export type ChatScreenProps = CompositeScreenProps<
-  BottomTabScreenProps<TabParamList, 'Chat'>,
-  NativeStackScreenProps<RootStackParamList>
+  NativeStackScreenProps<ChatStackParamList, 'ChatMain'>,
+  BottomTabScreenProps<TabParamList>
 >;
 
 export type SettingsScreenProps = CompositeScreenProps<
-  BottomTabScreenProps<TabParamList, 'Settings'>,
-  NativeStackScreenProps<RootStackParamList>
+  NativeStackScreenProps<SettingsStackParamList, 'SettingsMain'>,
+  BottomTabScreenProps<TabParamList>
 >;
 
 // Type for useNavigation hook

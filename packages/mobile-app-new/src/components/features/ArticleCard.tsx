@@ -4,33 +4,31 @@
  */
 
 import React from 'react';
-import {View, Text, StyleSheet, Pressable, Linking, Alert} from 'react-native';
+import {View, Text, StyleSheet} from 'react-native';
+import {useNavigation} from '@react-navigation/native';
 import {useTheme} from '@context/ThemeContext';
 import {GlassCard} from '@components/ui';
 import {Article} from '@up2d8/shared-types';
 import {getRelativeTime} from '@up2d8/shared-utils';
-import {ExternalLink, Calendar} from 'lucide-react-native';
+import {ChevronRight, Calendar} from 'lucide-react-native';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import type {HomeStackParamList} from '@navigation/types';
 
 interface ArticleCardProps {
   article: Article;
 }
 
+type NavigationProp = NativeStackNavigationProp<
+  HomeStackParamList,
+  'DashboardMain'
+>;
+
 export function ArticleCard({article}: ArticleCardProps) {
   const {theme} = useTheme();
+  const navigation = useNavigation<NavigationProp>();
 
-  const handlePress = async () => {
-    const url = article.url || article.link;
-    if (!url) {
-      Alert.alert('Error', 'No article URL available');
-      return;
-    }
-
-    const canOpen = await Linking.canOpenURL(url);
-    if (canOpen) {
-      await Linking.openURL(url);
-    } else {
-      Alert.alert('Error', 'Cannot open article link');
-    }
+  const handlePress = () => {
+    navigation.navigate('ArticleDetail', {article});
   };
 
   const publishedDate = article.published_at || article.published;
@@ -104,7 +102,7 @@ export function ArticleCard({article}: ArticleCardProps) {
             )}
           </View>
 
-          <ExternalLink size={16} color={theme.colors.textSecondary} />
+          <ChevronRight size={16} color={theme.colors.textSecondary} />
         </View>
       </View>
     </GlassCard>

@@ -9,3 +9,4 @@ export {Input} from './Input';
 export {Avatar} from './Avatar';
 export {Badge} from './Badge';
 export {Skeleton} from './Skeleton';
+export {SearchBar} from './SearchBar';

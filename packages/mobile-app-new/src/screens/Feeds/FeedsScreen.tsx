@@ -13,7 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import {useTheme} from '@context/ThemeContext';
-import {GlassCard, GlassButton, Input, Badge, Skeleton} from '@components/ui';
+import {GlassCard, GlassButton, Input, Badge, Skeleton, SearchBar} from '@components/ui';
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
 import {getRSSFeeds, addRSSFeed, deleteRSSFeed} from '@up2d8/shared-api';
 import {Feed} from '@up2d8/shared-types';
@@ -27,6 +27,7 @@ export default function FeedsScreen() {
   const [showAddFeed, setShowAddFeed] = useState(false);
   const [newFeedUrl, setNewFeedUrl] = useState('');
   const [newFeedTitle, setNewFeedTitle] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch feeds
   const {
@@ -43,6 +44,17 @@ export default function FeedsScreen() {
   });
 
   const feeds: Feed[] = feedsData || [];
+
+  // Filter feeds based on search query
+  const filteredFeeds = feeds.filter(feed => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      feed.title?.toLowerCase().includes(query) ||
+      feed.url?.toLowerCase().includes(query) ||
+      feed.category?.toLowerCase().includes(query)
+    );
+  });
 
   // Add feed mutation
   const addFeedMutation = useMutation({
@@ -176,6 +188,16 @@ export default function FeedsScreen() {
           {showAddFeed ? 'Cancel' : 'Add Feed'}
         </GlassButton>
 
+        {/* Search Bar */}
+        {feeds.length > 0 && (
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search feeds..."
+            style={{marginBottom: 16}}
+          />
+        )}
+
         {/* Add Feed Form */}
         {showAddFeed && (
           <GlassCard style={{marginBottom: 16}}>
@@ -264,7 +286,7 @@ export default function FeedsScreen() {
 
         {/* Feeds List */}
         {!isLoading &&
-          feeds.map((feed, index) => (
+          filteredFeeds.map((feed, index) => (
             <GlassCard
               key={feed.id || index}
               style={{marginBottom: 12}}
