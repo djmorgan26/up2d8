@@ -59,8 +59,8 @@ const Chat = () => {
   return (
     <div className="space-y-6 animate-fade-in h-[calc(100vh-8rem)] flex flex-col">
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
-          <MessageSquare className="h-5 w-5 md:h-6 md:w-6 text-white" />
+        <div className="hidden md:flex h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-accent items-center justify-center shadow-lg">
+          <MessageSquare className="h-6 w-6 text-white" />
         </div>
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Chat</h1>
