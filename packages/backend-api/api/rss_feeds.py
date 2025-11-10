@@ -6,7 +6,7 @@ import json
 import feedparser
 from dependencies import get_db_client, get_gemini_api_key
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, Field
 from google import genai
 from google.genai import types
 from shared.retry_utils import retry_with_backoff
@@ -44,19 +44,51 @@ def standardize_category(raw_category: str | None) -> str:
 
 
 class RssFeedCreate(BaseModel):
-    url: HttpUrl
-    category: str | None = None
-    title: str | None = None
+    """Request model for creating an RSS feed."""
+    url: HttpUrl = Field(
+        ...,
+        examples=["https://techcrunch.com/feed/"]
+    )
+    category: str | None = Field(
+        default=None,
+        max_length=50,
+        examples=["Technology"]
+    )
+    title: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+        examples=["TechCrunch"]
+    )
 
 
 class RssFeedUpdate(BaseModel):
-    url: HttpUrl | None = None
-    category: str | None = None
-    title: str | None = None
+    """Request model for updating an RSS feed."""
+    url: HttpUrl | None = Field(
+        default=None,
+        examples=["https://techcrunch.com/feed/"]
+    )
+    category: str | None = Field(
+        default=None,
+        max_length=50,
+        examples=["Technology"]
+    )
+    title: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+        examples=["TechCrunch"]
+    )
 
 
 class RssFeedSuggestRequest(BaseModel):
-    query: str
+    """Request model for RSS feed suggestions."""
+    query: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        examples=["technology news"]
+    )
 
 
 @router.post("/api/rss_feeds", status_code=status.HTTP_201_CREATED)

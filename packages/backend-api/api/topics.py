@@ -3,20 +3,33 @@ import logging
 from google import genai
 from dependencies import get_gemini_api_key
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from shared.retry_utils import retry_with_backoff
+from shared.validation import InterestsListField, QueryField
 
 router = APIRouter(tags=["Topics"])
 logger = logging.getLogger(__name__)
 
 
 class TopicSuggestRequest(BaseModel):
-    interests: list[str] = []
-    query: str = ""
+    """Request model for topic suggestions."""
+    interests: InterestsListField = Field(
+        default=[],
+        examples=[["Artificial Intelligence", "Machine Learning", "Technology"]]
+    )
+    query: str = Field(
+        default="",
+        max_length=500,
+        examples=["renewable energy technology"]
+    )
 
 
 class TopicSuggestResponse(BaseModel):
-    suggestions: list[str]
+    """Response model for topic suggestions."""
+    suggestions: list[str] = Field(
+        ...,
+        examples=[["Solar Energy", "Wind Power", "Electric Vehicles"]]
+    )
 
 
 @router.post(

@@ -22,10 +22,14 @@ def test_health_check_healthy():
 
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["database"] == "connected"
+    assert data["database"]["status"] == "connected"
+    assert data["database"]["ping_ok"] == True
     assert "timestamp" in data
+    assert "service" in data
+    assert "version" in data
     assert data["collections"]["articles"]["total"] == 100
     assert data["collections"]["articles"]["unprocessed"] == 10
+    assert data["collections"]["articles"]["processed"] == 90
     assert data["collections"]["users"] == 50
     assert data["collections"]["rss_feeds"] == 25
 

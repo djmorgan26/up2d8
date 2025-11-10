@@ -3,18 +3,30 @@ from datetime import UTC, datetime
 from auth import User, get_current_user
 from dependencies import get_db_client  # Import the new dependency
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from shared.validation import TopicsListField, PreferencesField
 
 router = APIRouter(tags=["Users"])
 
 
 class UserCreate(BaseModel):
-    topics: list[str]
+    """Request model for creating a user."""
+    topics: TopicsListField = Field(
+        ...,
+        examples=[["Technology", "Science", "Business"]]
+    )
 
 
 class UserUpdate(BaseModel):
-    topics: list[str] | None = None
-    preferences: dict | None = None
+    """Request model for updating user preferences."""
+    topics: TopicsListField | None = Field(
+        default=None,
+        examples=[["AI", "Climate", "Space"]]
+    )
+    preferences: PreferencesField | None = Field(
+        default=None,
+        examples=[{"theme": "dark", "notifications": "enabled"}]
+    )
 
 
 @router.post("/api/users", status_code=status.HTTP_200_OK)

@@ -182,12 +182,15 @@ def test_create_session(test_client, mocker):
     mock_sessions_collection = MagicMock()
     mock_db_client.sessions = mock_sessions_collection  # Configure the mock db client
 
-    response = client.post("/api/sessions", json={"user_id": "test_user", "title": "Test Session"})
+    response = client.post("/api/sessions", json={
+        "user_id": "550e8400-e29b-41d4-a716-446655440000",  # Valid UUID format
+        "title": "Test Session"
+    })
     assert response.status_code == 200
     assert "session_id" in response.json()
     mock_sessions_collection.insert_one.assert_called_once()
     inserted_session = mock_sessions_collection.insert_one.call_args[0][0]
-    assert inserted_session["user_id"] == "test_user"
+    assert inserted_session["user_id"] == "550e8400-e29b-41d4-a716-446655440000"
     assert inserted_session["title"] == "Test Session"
     assert "created_at" in inserted_session
     assert inserted_session["messages"] == []

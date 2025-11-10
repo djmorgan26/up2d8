@@ -6,24 +6,40 @@ from google import genai
 from google.genai import types
 from dependencies import get_db_client, get_gemini_api_key
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from shared.retry_utils import retry_with_backoff
+from shared.validation import PromptField, TitleField, UUIDField, MessageField
 
 router = APIRouter(tags=["Chat"])
 logger = logging.getLogger(__name__)
 
 
 class ChatRequest(BaseModel):
-    prompt: str
+    """Request model for chat endpoint."""
+    prompt: PromptField = Field(
+        ...,
+        examples=["What are the latest developments in AI?"]
+    )
 
 
 class SessionCreate(BaseModel):
-    user_id: str
-    title: str
+    """Request model for creating a chat session."""
+    user_id: UUIDField = Field(
+        ...,
+        examples=["550e8400-e29b-41d4-a716-446655440000"]
+    )
+    title: TitleField = Field(
+        ...,
+        examples=["AI Research Discussion"]
+    )
 
 
 class MessageContent(BaseModel):
-    content: str
+    """Request model for sending a message to a session."""
+    content: MessageField = Field(
+        ...,
+        examples=["Can you explain how transformers work?"]
+    )
 
 
 @router.post("/api/chat", status_code=status.HTTP_200_OK)

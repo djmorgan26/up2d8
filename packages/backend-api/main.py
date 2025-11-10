@@ -17,8 +17,14 @@ from api import (
 from auth import azure_scheme
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from logging_config import configure_logging
 from middleware.logging_middleware import RequestLoggingMiddleware
+from shared.error_handlers import (
+    validation_exception_handler,
+    pydantic_validation_exception_handler
+)
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +69,10 @@ app = FastAPI(
         {"name": "Feedback", "description": "User feedback collection"},
     ],
 )
+
+# Custom exception handlers for better validation error messages
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(ValidationError, pydantic_validation_exception_handler)
 
 # Request logging middleware (logs all requests/responses with timing)
 # Exclude health check and root endpoints to reduce noise

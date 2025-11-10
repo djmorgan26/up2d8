@@ -7,9 +7,9 @@ def test_create_analytics(test_client, mocker):
     mock_db_client.analytics = mock_analytics_collection  # Configure the mock db client
 
     analytics_data = {
-        "user_id": "user789",
-        "event_type": "page_view",
-        "details": {"page": "homepage"},
+        "user_id": "550e8400-e29b-41d4-a716-446655440000",  # Valid UUID format
+        "event_type": "article_view",  # Valid event type from allowed list
+        "details": {"article_id": "123", "duration_seconds": 45},
     }
     response = client.post("/api/analytics", json=analytics_data)  # Use the unpacked client
 
@@ -17,9 +17,9 @@ def test_create_analytics(test_client, mocker):
     assert response.json()["message"] == "Event logged."
     mock_analytics_collection.insert_one.assert_called_once()
     inserted_analytics = mock_analytics_collection.insert_one.call_args[0][0]
-    assert inserted_analytics["user_id"] == "user789"
-    assert inserted_analytics["event_type"] == "page_view"
-    assert inserted_analytics["details"] == {"page": "homepage"}
+    assert inserted_analytics["user_id"] == "550e8400-e29b-41d4-a716-446655440000"
+    assert inserted_analytics["event_type"] == "article_view"
+    assert inserted_analytics["details"] == {"article_id": "123", "duration_seconds": 45}
     assert "timestamp" in inserted_analytics
 
 
