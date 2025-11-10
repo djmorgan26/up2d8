@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import {useTheme} from '@context/ThemeContext';
+import {haptics} from '@utils';
 
 type ButtonVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
 type ButtonSize = 'sm' | 'default' | 'lg' | 'icon';
@@ -52,6 +53,7 @@ export function GlassButton({
 
   const handlePressIn = () => {
     if (disabled || loading) return;
+    haptics.light();
     Animated.spring(scaleAnim, {
       toValue: theme.animations.scale.press,
       ...theme.animations.spring.snappy,
