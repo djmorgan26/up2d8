@@ -3,9 +3,9 @@ import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MessageSquare, Send } from "lucide-react";
-import { useMsal } from "@azure/msal-react";
-import { loginRequest } from "@/config/msalConfig";
 import { toast } from "sonner";
+import { sendChat } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 
 const Chat = () => {
   const [message, setMessage] = useState("");
@@ -17,13 +17,12 @@ const Chat = () => {
     }>
   >([]);
   const [isLoading, setIsLoading] = useState(false);
-  const { instance, accounts } = useMsal();
-  const isAuthenticated = accounts.length > 0;
+  const { isAuthenticated, login } = useAuth();
 
   const handleSendMessage = async () => {
     if (!isAuthenticated) {
       try {
-        await instance.loginPopup(loginRequest);
+        await login();
       } catch (error) {
         console.error("Login failed:", error);
         return;
@@ -35,39 +34,22 @@ const Chat = () => {
     const userMessage = { role: "user", content: message };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
+    const userPrompt = message;
     setMessage("");
     setIsLoading(true);
 
     try {
-      const accessToken = await instance.acquireTokenSilent({
-        ...loginRequest,
-        account: accounts[0],
-      });
-
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken.accessToken}`,
-        },
-        body: JSON.stringify({ prompt: message }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to get response from assistant");
-      }
-
-      const data = await response.json();
+      const response = await sendChat(userPrompt);
       const assistantMessage = {
         role: "assistant",
-        content: data.reply || data.text,
-        sources: data.sources,
+        content: response.data.reply || response.data.text,
+        sources: response.data.sources,
       };
       setMessages([...newMessages, assistantMessage]);
     } catch (error) {
       console.error("Chat API error:", error);
       toast.error("Sorry, something went wrong. Please try again.");
-      // Optional: Revert optimistic UI update on error
+      // Revert optimistic UI update on error
       setMessages(messages);
     } finally {
       setIsLoading(false);

@@ -6,6 +6,9 @@ export const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
+// Store the token getter function
+let getTokenFunction: (() => Promise<string | null>) | null = null;
+
 export const setAuthToken = (token: string | null) => {
   if (token) {
     api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -13,6 +16,26 @@ export const setAuthToken = (token: string | null) => {
     delete api.defaults.headers.common["Authorization"];
   }
 };
+
+export const setTokenGetter = (fn: () => Promise<string | null>) => {
+  getTokenFunction = fn;
+};
+
+// Add request interceptor to attach token to every request
+api.interceptors.request.use(
+  async (config) => {
+    if (getTokenFunction) {
+      const token = await getTokenFunction();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 // Public endpoints
 export const getArticles = () => api.get("/articles");
@@ -38,3 +61,6 @@ export const getSessionMessages = (sessionId: string) => api.get(`/sessions/${se
 
 // Auth endpoint for post-login processing
 export const handleLogin = (userProfile: any) => api.post("/auth/login", userProfile);
+
+// Chat endpoint
+export const sendChat = (prompt: string) => api.post("/chat", { prompt });
