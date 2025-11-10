@@ -1,4 +1,16 @@
 {
   "name": "UP2D8",
-  "displayName": "UP2D8"
+  "displayName": "UP2D8",
+  "version": "1.0.0",
+  "buildNumber": 1,
+  "bundleIdentifier": "com.yourname.up2d8",
+  "orientation": "portrait",
+  "primaryColor": "#3B82F6",
+  "backgroundColor": "#0F172A",
+  "description": "Stay up to date with personalized news aggregation and AI-powered insights",
+  "category": "news",
+  "permissions": [
+    "INTERNET",
+    "ACCESS_NETWORK_STATE"
+  ]
 }
