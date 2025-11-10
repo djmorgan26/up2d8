@@ -112,6 +112,17 @@ package-lock.json
 .expo/
 .expo-shared/
 
+# iOS
+**/ios/Pods/
+**/ios/build/
+**/ios/*.xcworkspace/xcuserdata/
+**/ios/*.xcodeproj/xcuserdata/
+**/ios/.xcode.env.local
+
+# Ruby / CocoaPods
+**/vendor/bundle/
+Gemfile.lock
+
 # ============================================
 # Docker
 # ============================================
