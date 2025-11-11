@@ -18,7 +18,7 @@ export const Layout = ({ children }: LayoutProps) => {
       <MobileNav open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} />
 
       <main className="flex-1 overflow-auto">
-        <div className="container mx-auto px-3 pb-3 pt-20 md:p-6 max-w-7xl">
+        <div className="container mx-auto px-3 pb-3 pt-24 md:p-6 max-w-7xl">
           {children}
         </div>
       </main>
