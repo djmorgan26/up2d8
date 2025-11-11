@@ -14,11 +14,13 @@ export const Layout = ({ children }: LayoutProps) => {
       {/* Desktop Sidebar - Hidden on mobile */}
       <Sidebar className="hidden md:flex" />
 
-      {/* Mobile Navigation */}
-      <MobileNav open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} />
-
       <main className="flex-1 overflow-auto">
-        <div className="container mx-auto px-3 pb-3 pt-28 md:p-6 max-w-7xl">
+        <div className="container mx-auto px-3 pb-3 pt-6 md:p-6 max-w-7xl">
+          {/* Mobile Navigation - Inline at top */}
+          <div className="md:hidden mb-6">
+            <MobileNav open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} />
+          </div>
+
           {children}
         </div>
       </main>

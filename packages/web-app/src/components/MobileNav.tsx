@@ -52,7 +52,7 @@ export const MobileNav = ({ open, onOpenChange }: MobileNavProps) => {
   ];
 
   return (
-    <div className="md:hidden fixed top-6 left-4 z-50">
+    <div>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetTrigger asChild>
           <Button
