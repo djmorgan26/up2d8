@@ -32,6 +32,7 @@ class User(BaseModel):
     email: str | None = None
     preferred_username: str | None = None
     oid: str | None = None  # Object ID in Azure AD
+    iss: str | None = None  # Issuer (OAuth provider)
 
 
 async def get_current_user(auth: HTTPAuthorizationCredentials = Depends(azure_scheme)) -> User:
@@ -52,6 +53,7 @@ async def get_current_user(auth: HTTPAuthorizationCredentials = Depends(azure_sc
             email=auth.get("email"),
             preferred_username=auth.get("preferred_username"),
             oid=auth.get("oid"),
+            iss=auth.get("iss"),
         )
     except Exception as e:
         raise HTTPException(
