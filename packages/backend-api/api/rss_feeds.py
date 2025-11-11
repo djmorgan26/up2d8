@@ -119,7 +119,7 @@ async def suggest_rss_feeds(request: RssFeedSuggestRequest, api_key: str = Depen
         llm_prompt = f"Find RSS feeds related to: {request.query}. Provide the results as a JSON array of objects with 'title', 'url', and 'category' keys."
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.0-flash-exp",
             contents=llm_prompt,
             config=config
         )

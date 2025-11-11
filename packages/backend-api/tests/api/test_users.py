@@ -95,6 +95,10 @@ def test_update_user_success(test_client, mocker):
     mock_db_client.users = mock_users_collection  # Configure the mock db client
     mock_users_collection.update_one.return_value.matched_count = 1
 
+    # Mock the get_current_user dependency
+    mock_user = User(sub="some_user_id", email="test@example.com", name="Test User")
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
     user_id = "some_user_id"
     response = client.put(
         f"/api/users/{user_id}",
@@ -104,7 +108,14 @@ def test_update_user_success(test_client, mocker):
     assert response.json()["message"] == "Preferences updated."
     mock_users_collection.update_one.assert_called_once()
     assert mock_users_collection.update_one.call_args[0][0]["user_id"] == user_id
-    assert "$set" in mock_users_collection.update_one.call_args[0][1]
+    update_payload = mock_users_collection.update_one.call_args[0][1]["$set"]
+    # Verify dot notation is used for preferences
+    assert "preferences.theme" in update_payload
+    assert update_payload["preferences.theme"] == "dark"
+    assert "topics" in update_payload
+
+    # Clean up dependency override
+    app.dependency_overrides = {}
 
 
 def test_update_user_not_found(test_client, mocker):
@@ -148,7 +159,9 @@ def test_update_user_partial_update_preferences(test_client, mocker):
     assert response.json()["message"] == "Preferences updated."
     mock_users_collection.update_one.assert_called_once()
     update_payload = mock_users_collection.update_one.call_args[0][1]["$set"]
-    assert "preferences" in update_payload
+    # Verify dot notation is used for nested preferences
+    assert "preferences.lang" in update_payload
+    assert update_payload["preferences.lang"] == "en"
     assert "topics" not in update_payload
 
 
@@ -162,3 +175,38 @@ def test_update_user_no_fields_to_update(test_client, mocker):
     assert response.status_code == 400
     assert response.json()["detail"] == "No fields to update provided."
     mock_users_collection.update_one.assert_not_called()
+
+
+def test_update_user_multiple_preferences_separately(test_client, mocker):
+    """
+    Test that updating preferences separately doesn't overwrite existing preferences.
+    This is the critical bug fix - using dot notation preserves other preference fields.
+    """
+    client, mock_db_client = test_client
+    mock_users_collection = MagicMock()
+    mock_db_client.users = mock_users_collection
+    mock_users_collection.update_one.return_value.matched_count = 1
+
+    user_id = "some_user_id"
+
+    # First update: newsletter_format
+    response1 = client.put(
+        f"/api/users/{user_id}",
+        json={"preferences": {"newsletter_format": "detailed"}},
+    )
+    assert response1.status_code == 200
+    call1_update = mock_users_collection.update_one.call_args_list[0][0][1]["$set"]
+    assert "preferences.newsletter_format" in call1_update
+    assert call1_update["preferences.newsletter_format"] == "detailed"
+
+    # Second update: email_notifications
+    response2 = client.put(
+        f"/api/users/{user_id}",
+        json={"preferences": {"email_notifications": True, "newsletter_frequency": "weekly"}},
+    )
+    assert response2.status_code == 200
+    call2_update = mock_users_collection.update_one.call_args_list[1][0][1]["$set"]
+    assert "preferences.email_notifications" in call2_update
+    assert "preferences.newsletter_frequency" in call2_update
+    # The key point: this doesn't contain newsletter_format, so it won't overwrite it
+    assert "preferences.newsletter_format" not in call2_update
