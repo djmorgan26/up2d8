@@ -9,6 +9,7 @@ from api import (
     health,
     rss_feeds,
     topics,
+    user_articles,
     users,
 )
 from api import (
@@ -37,6 +38,7 @@ app = FastAPI(
         {"name": "System", "description": "System health and monitoring endpoints"},
         {"name": "Authentication", "description": "User authentication and authorization"},
         {"name": "Users", "description": "User management and preferences"},
+        {"name": "User Articles", "description": "Per-user article tracking (sent, read, bookmarked)"},
         {"name": "Articles", "description": "Article content management"},
         {"name": "RSS Feeds", "description": "RSS feed subscriptions and management"},
         {"name": "Topics", "description": "AI-powered topic discovery and suggestions"},
@@ -69,6 +71,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(auth_routes.router)  # Add auth router
 app.include_router(users.router)
+app.include_router(user_articles.router)
 app.include_router(articles.router)
 app.include_router(chat.router)
 app.include_router(rss_feeds.router)

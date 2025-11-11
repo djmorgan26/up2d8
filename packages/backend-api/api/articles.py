@@ -16,6 +16,8 @@ class ArticleCreate(BaseModel):
     tags: list[str] = []
     source: str = "rss"  # rss, intelligent_crawler, manual
     content: str | None = None  # Full content for crawled articles
+    feed_id: str | None = None  # RSS feed ID if from RSS source
+    feed_name: str | None = None  # RSS feed name for display
 
 
 @router.post("/api/articles", status_code=status.HTTP_201_CREATED)
@@ -41,6 +43,8 @@ async def create_article(article: ArticleCreate, db=Depends(get_db_client)):
         "tags": article.tags,
         "source": article.source,
         "content": article.content,
+        "feed_id": article.feed_id,
+        "feed_name": article.feed_name,
         "processed": False,
         "created_at": datetime.now(UTC),
     }
@@ -91,6 +95,8 @@ async def get_articles(db=Depends(get_db_client)):
                 "url": article.get("link"),  # Map link to url
                 "published_at": article.get("published"),  # Map published to published_at
                 "source": source,
+                "feed_id": article.get("feed_id"),
+                "feed_name": article.get("feed_name"),
             }
         )
 

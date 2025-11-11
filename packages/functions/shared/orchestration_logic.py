@@ -1,8 +1,10 @@
 import os
 import pymongo
 import feedparser
+from datetime import datetime
 from langchain_community.utilities import GoogleSearchAPIWrapper
 from shared.key_vault_client import get_secret_client
+from shared.backend_client import BackendAPIClient
 import structlog
 
 logger = structlog.get_logger()
@@ -28,32 +30,67 @@ def find_new_articles() -> list[str]:
         rss_feeds_collection = db.rss_feeds # Get RSS feeds collection
 
         all_found_urls = set()
+        backend_client = BackendAPIClient()
 
-        # --- 2. Process RSS Feeds ---
+        # --- 2. Process RSS Feeds - Create Articles Directly ---
         logger.info("Processing RSS feeds...")
+        rss_articles_created = 0
+
         for feed_doc in rss_feeds_collection.find({}):
             feed_url = feed_doc.get("url")
+            feed_id = feed_doc.get("id")
+            feed_title = feed_doc.get("title", "Unknown Feed")
+
             if not feed_url:
-                logger.warning("RSS feed document missing URL", feed_id=feed_doc.get("id"))
+                logger.warning("RSS feed document missing URL", feed_id=feed_id)
                 continue
-            
-            logger.info("Parsing RSS feed", url=feed_url)
+
+            logger.info("Parsing RSS feed", url=feed_url, feed_id=feed_id)
             try:
                 parsed_feed = feedparser.parse(feed_url)
+
                 for entry in parsed_feed.entries:
-                    if hasattr(entry, 'link'):
-                        all_found_urls.add(entry.link)
+                    if not hasattr(entry, 'link'):
+                        continue
+
+                    # Create article directly from RSS metadata (no crawling needed)
+                    article_data = {
+                        'title': entry.get('title', 'Untitled'),
+                        'link': entry.link,
+                        'summary': entry.get('summary', entry.get('description', '')),
+                        'published': entry.get('published', datetime.utcnow().isoformat()),
+                        'tags': [tag.get('term', '') for tag in entry.get('tags', [])],
+                        'source': 'rss',
+                        'feed_id': feed_id,
+                        'feed_name': feed_title,
+                        'content': None  # RSS articles don't need full content initially
+                    }
+
+                    try:
+                        result = backend_client.create_article(article_data)
+                        if 'created successfully' in result.get('message', ''):
+                            rss_articles_created += 1
+                            logger.debug("Created article from RSS",
+                                       article_title=article_data['title'],
+                                       feed_name=feed_title)
+                    except Exception as e:
+                        logger.error("Failed to create article from RSS",
+                                   article_link=entry.link,
+                                   feed_id=feed_id,
+                                   error=str(e))
+
             except Exception as e:
                 logger.error("Error parsing RSS feed", url=feed_url, error=str(e))
-        
-        logger.info("Found URLs from RSS feeds", count=len(all_found_urls))
 
-        # --- 3. Fetch User Topics and Search (Existing Logic) ---
+        logger.info("Created articles from RSS feeds", count=rss_articles_created)
+
+        # --- 3. Fetch User Topics and Search for Additional Articles ---
+        # Google Search results will still need crawling (no RSS metadata available)
         all_topics = set()
         for user in users_collection.find({}, {"topics": 1}):
             for topic in user.get("topics", []):
                 all_topics.add(topic)
-        
+
         if not all_topics:
             logger.warning("No user topics found for Google Search.")
         else:
@@ -76,21 +113,22 @@ def find_new_articles() -> list[str]:
                                 all_found_urls.add(res["link"])
                     except Exception as e:
                         logger.error("Error during Google Search for topic", topic=topic, error=str(e))
-                
-                logger.info("Found total URLs from RSS and Google Search", count=len(all_found_urls))
 
+                logger.info("Found URLs from Google Search (for crawling)", count=len(all_found_urls))
+
+        # --- 4. Deduplicate Google Search URLs against existing articles ---
+        # (RSS articles were already deduplicated via create_article API)
         if not all_found_urls:
-            logger.warning("No URLs found from RSS feeds or Google Search. Orchestrator finished.")
+            logger.info("No Google Search URLs to crawl. RSS articles created directly.")
             return []
-        
-        # --- 4. Deduplicate against existing articles ---
+
         existing_links = {article["link"] for article in articles_collection.find({"link": {"$in": list(all_found_urls)}}, {"link": 1})}
-        
-        logger.info("Found existing articles in DB", count=len(existing_links))
+
+        logger.info("Found existing Google Search articles in DB", count=len(existing_links))
 
         new_urls_to_crawl = list(all_found_urls - existing_links)
 
-        logger.info("Queuing new URLs for crawling", count=len(new_urls_to_crawl))
+        logger.info("Queuing new Google Search URLs for crawling", count=len(new_urls_to_crawl))
 
         return new_urls_to_crawl
 

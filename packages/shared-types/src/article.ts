@@ -13,6 +13,7 @@ export interface Article {
   published?: string; // Alias for published_at
   source?: string;
   feed_id?: string;
+  feed_name?: string; // Display name of the feed
   tags?: string[];
   author?: string;
   image_url?: string;

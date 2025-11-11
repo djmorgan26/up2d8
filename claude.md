@@ -196,3 +196,4 @@ This system is designed to:
 - Stay maintainable as projects scale
 
 For more details, see `README.md` and `.ai/context/architecture.md`.
+Use gemini-2.5-flash model for gemini.
