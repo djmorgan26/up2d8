@@ -82,22 +82,48 @@ async def update_user(
     users_collection = db.users
     # Use the authenticated user's ID from the token, not the URL parameter
     authenticated_user_id = user.sub
+    user_email = user.email
 
     update_fields = {}
     if user_update.topics is not None:
         update_fields["topics"] = user_update.topics
     if user_update.preferences is not None:
-        update_fields["preferences"] = user_update.preferences
+        # Use dot notation to update nested preference fields without replacing the entire object
+        for key, value in user_update.preferences.items():
+            update_fields[f"preferences.{key}"] = value
 
     if not update_fields:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update provided."
         )
 
+    # Try to update by user_id first
     result = users_collection.update_one(
         {"user_id": authenticated_user_id},
         {"$set": update_fields, "$currentDate": {"updated_at": True}},
     )
+
+    # If not found by user_id, try by email and link the account
+    if result.matched_count == 0 and user_email:
+        # Detect OAuth provider from token issuer
+        oauth_provider = "unknown"
+        if hasattr(user, 'iss'):
+            if 'microsoft' in user.iss or 'login.microsoftonline' in user.iss:
+                oauth_provider = "entra_id"
+            elif 'google' in user.iss or 'accounts.google' in user.iss:
+                oauth_provider = "google"
+
+        # First link the OAuth account
+        link_result = users_collection.update_one(
+            {"email": user_email},
+            {"$set": {"user_id": authenticated_user_id, "oauth_provider": oauth_provider, "oauth_id": authenticated_user_id}}
+        )
+        if link_result.matched_count > 0:
+            # Now update with the requested fields
+            result = users_collection.update_one(
+                {"user_id": authenticated_user_id},
+                {"$set": update_fields, "$currentDate": {"updated_at": True}},
+            )
 
     if result.matched_count == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
@@ -117,7 +143,31 @@ async def get_user(
     users_collection = db.users
     # Use the authenticated user's ID from the token, not the URL parameter
     authenticated_user_id = user.sub
+    user_email = user.email
+
+    # Try to find by user_id first
     user_data = users_collection.find_one({"user_id": authenticated_user_id}, {"_id": 0})
+
+    # If not found by user_id, try to find by email (for OAuth users linking to email/password accounts)
+    if not user_data and user_email:
+        user_data = users_collection.find_one({"email": user_email}, {"_id": 0})
+        # If found by email, update the user_id to link the OAuth account
+        if user_data:
+            # Detect OAuth provider from token issuer or use email domain as fallback
+            oauth_provider = "unknown"
+            if hasattr(user, 'iss'):
+                if 'microsoft' in user.iss or 'login.microsoftonline' in user.iss:
+                    oauth_provider = "entra_id"
+                elif 'google' in user.iss or 'accounts.google' in user.iss:
+                    oauth_provider = "google"
+
+            users_collection.update_one(
+                {"email": user_email},
+                {"$set": {"user_id": authenticated_user_id, "oauth_provider": oauth_provider, "oauth_id": authenticated_user_id}}
+            )
+            # Refetch to get updated data
+            user_data = users_collection.find_one({"user_id": authenticated_user_id}, {"_id": 0})
+
     if not user_data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
     return user_data
