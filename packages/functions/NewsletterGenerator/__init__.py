@@ -48,7 +48,7 @@ def main(timer: func.TimerRequest) -> None:
 
         # Configure Gemini API
         genai.configure(api_key=gemini_api_key)
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.5-flash')
 
         # Initialize SMTP Provider
         smtp_provider = SMTPProvider(
