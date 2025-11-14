@@ -23,10 +23,13 @@ class ArticleCreate(BaseModel):
 @router.post("/api/articles", status_code=status.HTTP_201_CREATED)
 async def create_article(article: ArticleCreate, db=Depends(get_db_client)):
     """Create a new article. Used by Azure Functions for scraped content."""
+    from pymongo.errors import DuplicateKeyError
+
     articles_collection = db.articles
 
-    # Check for duplicates
-    existing = articles_collection.find_one({"link": str(article.link)})
+    # Check for duplicates - check both 'link' and 'url' fields for compatibility
+    article_url = str(article.link)
+    existing = articles_collection.find_one({"$or": [{"link": article_url}, {"url": article_url}]})
     if existing:
         return {
             "message": "Article already exists.",
@@ -37,7 +40,8 @@ async def create_article(article: ArticleCreate, db=Depends(get_db_client)):
     new_article = {
         "id": article_id,
         "title": article.title,
-        "link": str(article.link),
+        "link": article_url,
+        "url": article_url,  # Add url field for compatibility with unique index
         "summary": article.summary,
         "published": article.published,
         "tags": article.tags,
@@ -49,7 +53,18 @@ async def create_article(article: ArticleCreate, db=Depends(get_db_client)):
         "created_at": datetime.now(UTC),
     }
 
-    articles_collection.insert_one(new_article)
+    try:
+        articles_collection.insert_one(new_article)
+    except DuplicateKeyError:
+        # Handle race condition where article was inserted between check and insert
+        existing = articles_collection.find_one({"$or": [{"link": article_url}, {"url": article_url}]})
+        if existing:
+            return {
+                "message": "Article already exists.",
+                "id": existing.get("id", str(existing.get("_id"))),
+            }
+        # If we still can't find it, re-raise the error
+        raise
 
     # Log analytics event for article creation
     analytics_collection = db.analytics
