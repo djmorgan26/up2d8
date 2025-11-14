@@ -132,3 +132,22 @@ export function getApiClient(): ApiClient {
   }
   return defaultClient;
 }
+
+/**
+ * Helper to set auth token on default client
+ */
+export function setAuthToken(token: string | null): void {
+  if (defaultClient) {
+    defaultClient.setAuthToken(token);
+  }
+}
+
+/**
+ * Helper to get auth token from default client
+ */
+export function getAuthToken(): string | null {
+  if (defaultClient) {
+    return defaultClient.getAuthToken();
+  }
+  return null;
+}

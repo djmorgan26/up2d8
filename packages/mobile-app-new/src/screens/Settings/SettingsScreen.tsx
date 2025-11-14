@@ -7,7 +7,7 @@ import React from 'react';
 import {View, Text, ScrollView, StyleSheet, Switch, Alert} from 'react-native';
 import {useTheme} from '@context/ThemeContext';
 import {GlassCard, GlassButton} from '@components/ui';
-import {usePreferencesStore} from '@stores';
+import {usePreferencesStore, useAuthStore} from '@stores';
 import {haptics} from '@utils';
 import {
   Settings,
@@ -18,12 +18,16 @@ import {
   Type,
   Layout,
   Trash2,
+  LogOut,
+  User,
 } from 'lucide-react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import Toast from 'react-native-toast-message';
 
 export default function SettingsScreen() {
   const {theme, toggleTheme, isDark} = useTheme();
   const {preferences, setPreference, resetPreferences} = usePreferencesStore();
+  const {user, logout, isLoading} = useAuthStore();
 
   const handleThemeToggle = () => {
     haptics.selection();
@@ -48,6 +52,37 @@ export default function SettingsScreen() {
             haptics.warning();
             resetPreferences();
             Alert.alert('Success', 'Preferences reset to default values');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            haptics.notification('success');
+            try {
+              await logout();
+              Toast.show({
+                type: 'success',
+                text1: 'Signed out',
+                text2: 'See you next time!',
+              });
+            } catch (error) {
+              Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'Failed to sign out',
+              });
+            }
           },
         },
       ]
@@ -362,6 +397,75 @@ export default function SettingsScreen() {
           </View>
         </GlassCard>
 
+        {/* Account Section */}
+        <GlassCard style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <User size={20} color={theme.colors.primary} />
+            <Text
+              style={[
+                styles.sectionTitle,
+                {
+                  color: theme.colors.textPrimary,
+                  fontSize: theme.typography.fontSize.lg,
+                  fontWeight: theme.typography.fontWeight.semibold,
+                },
+              ]}>
+              Account
+            </Text>
+          </View>
+
+          {/* User Info */}
+          {user && (
+            <View style={styles.userInfo}>
+              <View
+                style={[
+                  styles.avatar,
+                  {
+                    backgroundColor: theme.colors.primary + '20',
+                    borderRadius: theme.borderRadius.full,
+                  },
+                ]}>
+                <User size={24} color={theme.colors.primary} />
+              </View>
+              <View style={styles.userDetails}>
+                <Text
+                  style={[
+                    styles.userName,
+                    {
+                      color: theme.colors.textPrimary,
+                      fontSize: theme.typography.fontSize.base,
+                      fontWeight: theme.typography.fontWeight.semibold,
+                    },
+                  ]}>
+                  {user.name || 'User'}
+                </Text>
+                <Text
+                  style={[
+                    styles.userEmail,
+                    {
+                      color: theme.colors.textSecondary,
+                      fontSize: theme.typography.fontSize.sm,
+                    },
+                  ]}>
+                  {user.email}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Logout Button */}
+          <GlassButton
+            variant="destructive"
+            onPress={handleLogout}
+            loading={isLoading}
+            disabled={isLoading}
+            icon={<LogOut size={18} color="#FFFFFF" />}
+            iconPosition="left"
+            style={styles.logoutButton}>
+            Sign Out
+          </GlassButton>
+        </GlassCard>
+
         {/* Reset */}
         <GlassCard style={styles.section}>
           <Text
@@ -527,4 +631,27 @@ const styles = StyleSheet.create({
   },
   infoLabel: {},
   infoValue: {},
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  userDetails: {
+    flex: 1,
+  },
+  userName: {
+    marginBottom: 4,
+  },
+  userEmail: {},
+  logoutButton: {
+    marginTop: 8,
+  },
 });
