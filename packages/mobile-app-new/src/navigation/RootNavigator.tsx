@@ -4,38 +4,61 @@
  * Includes auth guard to redirect unauthenticated users
  */
 
-import React, {useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {useTheme} from '@context/ThemeContext';
 import {useAuthStore, getAccessToken} from '@stores';
-import {setAuthToken} from '@up2d8/shared-api';
+import {setAuthToken, setRefreshTokenFn} from '@up2d8/shared-api';
 import {TabNavigator} from './TabNavigator';
-import {LoginScreen, SignupScreen, MSALLoginScreen} from '@screens/Auth';
+import {LoginScreen, SignupScreen, MSALLoginScreen, SplashScreen} from '@screens/Auth';
 
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator() {
   const {theme} = useTheme();
-  const {isAuthenticated, setTokens, setLoading} = useAuthStore();
+  const {isAuthenticated, setTokens, refreshAccessToken, clearAuth} = useAuthStore();
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Set up token refresh function for API client
+  useEffect(() => {
+    setRefreshTokenFn(async () => {
+      try {
+        const success = await refreshAccessToken();
+        if (success) {
+          const token = await getAccessToken();
+          return token;
+        }
+        // Refresh failed - clear auth
+        await clearAuth();
+        return null;
+      } catch (error) {
+        console.error('Token refresh failed:', error);
+        await clearAuth();
+        return null;
+      }
+    });
+
+    return () => {
+      setRefreshTokenFn(null);
+    };
+  }, [refreshAccessToken, clearAuth]);
 
   // Load token from secure storage on mount
   useEffect(() => {
     const loadToken = async () => {
-      setLoading(true);
       try {
         const token = await getAccessToken();
         if (token) {
           // Set token in API client
           setAuthToken(token);
           // Token exists, user is authenticated
-          // setTokens will update auth state
           await setTokens(token);
         }
       } catch (error) {
         console.error('Failed to load token:', error);
       } finally {
-        setLoading(false);
+        setIsInitializing(false);
       }
     };
 
@@ -55,6 +78,11 @@ export default function RootNavigator() {
       setAuthToken(null);
     }
   }, [isAuthenticated]);
+
+  // Show splash screen during initialization
+  if (isInitializing) {
+    return <SplashScreen />;
+  }
 
   return (
     <NavigationContainer

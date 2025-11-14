@@ -29,36 +29,32 @@ export default function MSALLoginScreen({navigation}: MSALLoginScreenProps) {
     setError(null);
 
     try {
-      // TODO: Implement MSAL authentication
-      // 1. Initialize MSAL client
-      // 2. Acquire token silently or interactively
-      // 3. Store token and user info
+      const {msalService} = await import('@services/msalService');
 
-      // Example MSAL flow (to be implemented):
-      // const msalClient = await MSALClient.initialize({
-      //   clientId: 'YOUR_CLIENT_ID',
-      //   authority: 'https://login.microsoftonline.com/YOUR_TENANT_ID',
-      //   redirectUri: 'YOUR_REDIRECT_URI',
-      // });
-      //
-      // const result = await msalClient.acquireTokenInteractive({
-      //   scopes: ['User.Read', 'api://YOUR_API_CLIENT_ID/access_as_user'],
-      // });
-      //
-      // await setTokens(result.accessToken, result.refreshToken, 'msal');
-      // setUser({
-      //   id: result.account.homeAccountId,
-      //   email: result.account.username,
-      //   name: result.account.name,
-      //   created_at: new Date().toISOString(),
-      //   updated_at: new Date().toISOString(),
-      // });
+      if (!msalService.isReady()) {
+        throw new Error('MSAL not configured. Please set up Entra ID credentials in .env');
+      }
+
+      // Acquire token interactively
+      const result = await msalService.acquireTokenInteractive();
+
+      // Store tokens
+      await setTokens(result.accessToken, undefined, 'msal');
+
+      // Set user info
+      setUser({
+        id: result.account.homeAccountId,
+        email: result.account.username,
+        name: result.account.name,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
 
       triggerHaptic('notificationSuccess');
       Toast.show({
         type: 'success',
         text1: 'Signed in successfully',
-        text2: 'Welcome to UP2D8',
+        text2: `Welcome ${result.account.name}!`,
       });
 
       // Navigation will be handled by RootNavigator when isAuthenticated changes
