@@ -88,19 +88,14 @@ jobs:
           fi
         continue-on-error: true
 
-      - name: Zip package for deployment
+      - name: Install Azure Functions Core Tools
         run: |
-          cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-          # Create deployment package
-          zip -r $GITHUB_WORKSPACE/functions-deploy.zip . -x ".venv/*" "tests/*" ".pytest_cache/*" "__pycache__/*" "*.pyc"
+          npm install -g azure-functions-core-tools@4 --unsafe-perm true
 
-      - name: Deploy to Azure Function App
-        uses: Azure/functions-action@v1
-        with:
-          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
-          package: ${{ github.workspace }}/functions-deploy.zip
-          scm-do-build-during-deployment: true
-          enable-oryx-build: true
+      - name: Deploy to Azure Function App with remote build
+        working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        run: |
+          func azure functionapp publish ${{ env.AZURE_FUNCTIONAPP_NAME }} --python --build remote
 
       - name: Verify deployment
         run: |
