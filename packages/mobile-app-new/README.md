@@ -1,8 +1,14 @@
-# UP2D8 iOS Mobile App
+# UP2D8 Mobile App
 
-A beautiful, modern iOS mobile app for UP2D8 news aggregation service, built with React Native and matching the web app's glassmorphism design.
+A beautiful, modern mobile app for UP2D8 news aggregation service, built with React Native and matching the web app's glassmorphism design.
 
-**Status:** ✅ Phase 6 Complete - Production Ready Beta
+**Status:** ✅ Complete - Production Ready with Full Authentication
+
+## 🚀 Quick Start
+
+**Want to get running fast?** See [QUICKSTART.md](./QUICKSTART.md) (5 minutes)
+
+**Need full auth setup?** See [AUTH_SETUP.md](./AUTH_SETUP.md) (1-2 hours)
 
 ## 🎯 Overview
 
@@ -25,10 +31,13 @@ This is a complete rebuild of the UP2D8 mobile app, designed to match the web ap
 - **Icons**: Lucide React Native icon library
 
 ### Technical Features
+- **Authentication**: Microsoft Entra ID (MSAL) with automatic token refresh
+- **Secure Storage**: expo-secure-store for encrypted token storage
 - **State Management**: Zustand with AsyncStorage persistence
-- **Navigation**: React Navigation v7 with stack + tab navigators
+- **Navigation**: React Navigation v7 with auth guard
 - **Data Fetching**: React Query with caching and optimistic updates
 - **Type Safety**: Full TypeScript with shared types package
+- **Error Handling**: Error boundaries with graceful fallbacks
 - **Performance**: FlatList virtualization, optimized re-renders
 - **Haptic Feedback**: iOS-native tactile feedback throughout
 

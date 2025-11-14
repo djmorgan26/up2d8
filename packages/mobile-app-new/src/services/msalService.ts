@@ -2,13 +2,13 @@
  * MSAL Service
  * Microsoft Entra ID authentication service for React Native
  *
- * NOTE: This requires @azure/msal-react-native to be properly configured
+ * NOTE: This uses @azure/msal-react-native for authentication
  * See: https://github.com/AzureAD/microsoft-authentication-library-for-react-native
  */
 
 import {msalConfig, validateMSALConfig, getMSALAuthority} from '@config/msalConfig';
 
-// Placeholder types until MSAL is fully integrated
+// MSAL types
 interface MSALAccount {
   username: string;
   name: string;
@@ -23,15 +23,60 @@ interface MSALAuthResult {
   expiresOn: number;
 }
 
+// Type for MSAL client (will be loaded dynamically)
+interface MSALClientType {
+  createPublicClientApplication: (config: any) => Promise<any>;
+}
+
 /**
  * MSAL Service class
  * Handles Microsoft Entra ID authentication
  */
 class MSALService {
   private isConfigured = false;
+  private msalClient: any = null;
+  private initPromise: Promise<void> | null = null;
 
   constructor() {
     this.isConfigured = validateMSALConfig();
+  }
+
+  /**
+   * Initialize MSAL client (lazy)
+   */
+  private async initialize(): Promise<void> {
+    if (this.msalClient) {
+      return;
+    }
+
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+
+    this.initPromise = (async () => {
+      try {
+        // Dynamically import MSAL to avoid errors if not configured
+        const MSALModule = await import('@azure/msal-react-native');
+
+        const config = {
+          auth: {
+            clientId: msalConfig.clientId,
+            authority: getMSALAuthority(),
+          },
+          cache: {
+            cacheLocation: 'secureStore', // Use secure storage
+          },
+        };
+
+        this.msalClient = await MSALModule.createPublicClientApplication(config);
+        console.log('MSAL client initialized successfully');
+      } catch (error: any) {
+        console.error('MSAL initialization failed:', error);
+        throw new Error('Failed to initialize MSAL: ' + error.message);
+      }
+    })();
+
+    return this.initPromise;
   }
 
   /**
@@ -52,29 +97,33 @@ class MSALService {
     }
 
     try {
-      // TODO: Implement actual MSAL React Native flow
-      //
-      // Example implementation:
-      //
-      // import { MSALClient } from '@azure/msal-react-native';
-      //
-      // const msalClient = new MSALClient({
-      //   auth: {
-      //     clientId: msalConfig.clientId,
-      //     authority: getMSALAuthority(),
-      //     redirectUri: msalConfig.redirectUri,
-      //   },
-      // });
-      //
-      // const result = await msalClient.acquireTokenInteractive({
-      //   scopes: msalConfig.scopes,
-      // });
-      //
-      // return result;
+      await this.initialize();
 
-      throw new Error('MSAL interactive login not yet implemented. Please complete MSAL integration.');
+      const params = {
+        scopes: msalConfig.scopes,
+      };
+
+      const result = await this.msalClient.acquireToken(params);
+
+      return {
+        accessToken: result.accessToken,
+        idToken: result.idToken,
+        account: {
+          username: result.account.username,
+          name: result.account.name || result.account.username,
+          homeAccountId: result.account.homeAccountId,
+          localAccountId: result.account.localAccountId,
+        },
+        expiresOn: result.expiresOn,
+      };
     } catch (error: any) {
       console.error('MSAL acquireTokenInteractive failed:', error);
+
+      // Check if user cancelled
+      if (error.message?.includes('cancel') || error.message?.includes('Cancel')) {
+        throw new Error('Sign in was cancelled');
+      }
+
       throw new Error(error.message || 'Failed to acquire token interactively');
     }
   }
@@ -91,19 +140,29 @@ class MSALService {
     }
 
     try {
-      // TODO: Implement actual MSAL React Native silent token acquisition
-      //
-      // const result = await msalClient.acquireTokenSilent({
-      //   scopes: msalConfig.scopes,
-      //   account: account,
-      // });
-      //
-      // return result;
+      await this.initialize();
 
-      throw new Error('MSAL silent token acquisition not yet implemented');
+      const params = {
+        scopes: msalConfig.scopes,
+        account: account,
+      };
+
+      const result = await this.msalClient.acquireTokenSilent(params);
+
+      return {
+        accessToken: result.accessToken,
+        idToken: result.idToken,
+        account: {
+          username: result.account.username,
+          name: result.account.name || result.account.username,
+          homeAccountId: result.account.homeAccountId,
+          localAccountId: result.account.localAccountId,
+        },
+        expiresOn: result.expiresOn,
+      };
     } catch (error: any) {
       console.error('MSAL acquireTokenSilent failed:', error);
-      // If silent acquisition fails, fall back to interactive
+      // If silent acquisition fails, caller should fall back to interactive
       throw error;
     }
   }
@@ -119,12 +178,16 @@ class MSALService {
     }
 
     try {
-      // TODO: Implement actual MSAL React Native get accounts
-      //
-      // const accounts = await msalClient.getAccounts();
-      // return accounts;
+      await this.initialize();
 
-      return [];
+      const accounts = await this.msalClient.getAllAccounts();
+
+      return accounts.map((acc: any) => ({
+        username: acc.username,
+        name: acc.name || acc.username,
+        homeAccountId: acc.homeAccountId,
+        localAccountId: acc.localAccountId,
+      }));
     } catch (error) {
       console.error('MSAL getAccounts failed:', error);
       return [];
@@ -142,20 +205,22 @@ class MSALService {
     }
 
     try {
-      // TODO: Implement actual MSAL React Native sign out
-      //
-      // if (account) {
-      //   await msalClient.removeAccount(account);
-      // } else {
-      //   const accounts = await msalClient.getAccounts();
-      //   for (const acc of accounts) {
-      //     await msalClient.removeAccount(acc);
-      //   }
-      // }
+      await this.initialize();
 
-      console.log('MSAL signOut called (not yet implemented)');
+      if (account) {
+        await this.msalClient.removeAccount(account);
+      } else {
+        // Sign out all accounts
+        const accounts = await this.getAccounts();
+        for (const acc of accounts) {
+          await this.msalClient.removeAccount(acc);
+        }
+      }
+
+      console.log('MSAL sign out successful');
     } catch (error) {
       console.error('MSAL signOut failed:', error);
+      throw error;
     }
   }
 }

@@ -13,15 +13,22 @@ import {ThemeProvider} from '@context/ThemeContext';
 import {createApiClient} from '@up2d8/shared-api';
 import RootNavigator from '@navigation/RootNavigator';
 import Toast from 'react-native-toast-message';
+import {ErrorBoundary} from '@components/error';
 
-// Initialize API client
-const API_BASE_URL = __DEV__
-  ? 'http://localhost:8000/api'
-  : 'https://api.up2d8.com/api';
+// Initialize API client from environment
+const API_BASE_URL = process.env.API_BASE_URL || (
+  __DEV__
+    ? 'http://localhost:8000/api'
+    : 'https://up2d8.azurewebsites.net/api'
+);
+
+const API_TIMEOUT = process.env.API_TIMEOUT
+  ? parseInt(process.env.API_TIMEOUT, 10)
+  : 30000;
 
 createApiClient({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: API_TIMEOUT,
 });
 
 // Create React Query client
@@ -37,16 +44,18 @@ const queryClient = new QueryClient({
 
 function App(): React.JSX.Element {
   return (
-    <GestureHandlerRootView style={styles.container}>
-      <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider>
-            <RootNavigator />
-            <Toast />
-          </ThemeProvider>
-        </QueryClientProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={styles.container}>
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+              <RootNavigator />
+              <Toast />
+            </ThemeProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
 
