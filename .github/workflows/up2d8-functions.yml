@@ -92,6 +92,10 @@ jobs:
         run: |
           npm install -g azure-functions-core-tools@4 --unsafe-perm true
 
+      - name: Remove WEBSITE_RUN_FROM_PACKAGE if set
+        run: |
+          az functionapp config appsettings delete -n ${{ env.AZURE_FUNCTIONAPP_NAME }} -g ${{ env.AZURE_RESOURCE_GROUP }} --setting-names "WEBSITE_RUN_FROM_PACKAGE" || true
+
       - name: Deploy to Azure Function App with remote build
         working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
         run: |
