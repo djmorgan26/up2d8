@@ -161,9 +161,19 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                     skipped_users.append({"email": user_email, "reason": reason})
                     continue
 
+                # Limit to top 15 articles to avoid Gemini quota issues
+                # Take most recent articles first
+                relevant_articles_sorted = sorted(relevant_articles, key=lambda x: x.get('created_at', ''), reverse=True)
+                top_articles = relevant_articles_sorted[:15]
+
+                logger.info("Articles limited for newsletter",
+                           user_email=user_email,
+                           total_relevant=len(relevant_articles),
+                           sending_to_gemini=len(top_articles))
+
                 # Generate newsletter content with Gemini
                 prompt = f"Create a {newsletter_format} newsletter in Markdown from these articles:\n\n"
-                for article in relevant_articles:
+                for article in top_articles:
                     prompt += f"- **{article['title']}**: {article['summary']}\n"
 
                 logger.info("Generating newsletter with Gemini", user_email=user_email)
