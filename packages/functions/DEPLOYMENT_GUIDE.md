@@ -1,7 +1,25 @@
 # UP2D8 Integration Deployment Guide
 
-**Last Updated**: 2025-11-08
+**Last Updated**: 2025-11-14
 **Purpose**: Step-by-step guide to deploy integrated UP2D8-Function and UP2D8-BACKEND
+
+---
+
+## Quick Deployment Command (After Updates)
+
+**IMPORTANT**: Use this command after making code changes to deploy with proper dependency installation:
+
+```bash
+# From repository root
+gh workflow run up2d8-functions.yml
+```
+
+The workflow automatically:
+- Removes `WEBSITE_RUN_FROM_PACKAGE` setting (required for remote build)
+- Installs dependencies via Azure Oryx remote build
+- Deploys all functions with proper Python packages
+
+**DO NOT** manually set `WEBSITE_RUN_FROM_PACKAGE` - it breaks dependency installation!
 
 ---
 
