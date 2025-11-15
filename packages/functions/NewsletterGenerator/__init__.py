@@ -2,9 +2,9 @@ import os
 import pymongo
 import google.generativeai as genai
 import azure.functions as func
-import markdown # Import the markdown library
 from shared.email_service import EmailMessage, SMTPProvider
 from shared.embeddings_service import EmbeddingsService
+from shared.email_template import get_newsletter_template, get_plain_text_newsletter
 from dotenv import load_dotenv
 from shared.key_vault_client import get_secret_client
 import structlog
@@ -186,31 +186,37 @@ def main(timer: func.TimerRequest) -> None:
                           article_count=len(relevant_articles),
                           top_score=ranked_articles[0][1] if ranked_articles else 0.0)
 
-                # Generate newsletter content with Gemini
-                prompt = f"Create a {newsletter_format} newsletter in Markdown from these articles:\n\n"
-                for article in relevant_articles:
-                    prompt += f"- **{article['title']}**: {article['summary']}\n"
-                
-                newsletter_content_markdown = ""
-                try:
-                    response = model.generate_content(prompt)
-                    newsletter_content_markdown = response.text
-                except Exception as e:
-                    logger.error("Error generating content with Gemini for user", user_email=user['email'], error=str(e))
-                    continue # Skip to the next user if Gemini API fails
+                # Get user's first name if available
+                user_name = user.get('name', 'there')
+                if user_name and ' ' in user_name:
+                    user_name = user_name.split()[0]  # Get first name only
 
-                if not newsletter_content_markdown:
-                    logger.warning("Gemini API returned empty content for user. Skipping email.", user_email=user['email'])
-                    continue
+                # Generate beautiful HTML email with clickable links
+                newsletter_content_html = get_newsletter_template(
+                    articles=relevant_articles,
+                    user_name=user_name
+                )
 
-                # Convert Markdown to HTML
-                newsletter_content_html = markdown.markdown(newsletter_content_markdown)
+                # Generate plain text version for email clients that don't support HTML
+                newsletter_content_text = get_plain_text_newsletter(
+                    articles=relevant_articles,
+                    user_name=user_name
+                )
+
+                # Determine subject line based on frequency
+                subject_map = {
+                    'daily': 'Your Daily News Digest',
+                    'weekly': 'Your Weekly News Digest',
+                    'monthly': 'Your Monthly News Digest'
+                }
+                subject = subject_map.get(newsletter_frequency, 'Your News Digest')
 
                 # Create and send email
                 email_message = EmailMessage(
                     to=user['email'],
-                    subject='Your Daily News Digest',
-                    html_body=newsletter_content_html, # Use HTML content
+                    subject=subject,
+                    html_body=newsletter_content_html,
+                    text_body=newsletter_content_text,
                     from_email=sender_email
                 )
                 
