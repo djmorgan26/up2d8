@@ -8,17 +8,7 @@ import { toast } from "sonner";
 import { useMsal } from "@azure/msal-react";
 import { api, setAuthToken } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
-
-const topics = [
-  { id: "technology", label: "Technology" },
-  { id: "business", label: "Business" },
-  { id: "science", label: "Science" },
-  { id: "health", label: "Health" },
-  { id: "sports", label: "Sports" },
-  { id: "entertainment", label: "Entertainment" },
-  { id: "politics", label: "Politics" },
-  { id: "world", label: "World News" },
-];
+import { TOPIC_CATEGORIES } from "@/lib/constants";
 
 const Onboarding = () => {
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
@@ -84,7 +74,7 @@ const Onboarding = () => {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-          {topics.map((topic) => (
+          {TOPIC_CATEGORIES.map((topic) => (
             <div
               key={topic.id}
               onClick={() => toggleTopic(topic.id)}
