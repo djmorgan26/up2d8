@@ -191,10 +191,17 @@ def main(timer: func.TimerRequest) -> None:
                 if user_name and ' ' in user_name:
                     user_name = user_name.split()[0]  # Get first name only
 
-                # Generate beautiful HTML email with clickable links
+                # Build unsubscribe URL with user ID
+                unsubscribe_url = f"https://gray-wave-00bdfc60f.3.azurestaticapps.net/settings?action=unsubscribe&user_id={user_id}"
+
+                # Generate beautiful HTML email with all new features
                 newsletter_content_html = get_newsletter_template(
                     articles=relevant_articles,
-                    user_name=user_name
+                    user_name=user_name,
+                    newsletter_format=newsletter_format,
+                    user_topics=user_topics,
+                    unsubscribe_url=unsubscribe_url,
+                    feedback_url="https://gray-wave-00bdfc60f.3.azurestaticapps.net/api/feedback"
                 )
 
                 # Generate plain text version for email clients that don't support HTML
