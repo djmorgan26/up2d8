@@ -5,6 +5,7 @@ import azure.functions as func
 from shared.email_service import EmailMessage, SMTPProvider
 from shared.embeddings_service import EmbeddingsService
 from shared.email_template import get_newsletter_template, get_plain_text_newsletter
+from shared.article_enrichment import enrich_articles
 from dotenv import load_dotenv
 from shared.key_vault_client import get_secret_client
 import structlog
@@ -186,6 +187,12 @@ def main(timer: func.TimerRequest) -> None:
                           article_count=len(relevant_articles),
                           top_score=ranked_articles[0][1] if ranked_articles else 0.0)
 
+                # Enrich articles with metadata (source, read_time, topic, published_time_ago)
+                enriched_articles = enrich_articles(relevant_articles, user_topics)
+                logger.info("Enriched articles with metadata",
+                          user_email=user_email,
+                          article_count=len(enriched_articles))
+
                 # Get user's first name if available
                 user_name = user.get('name', 'there')
                 if user_name and ' ' in user_name:
@@ -196,7 +203,7 @@ def main(timer: func.TimerRequest) -> None:
 
                 # Generate beautiful HTML email with all new features
                 newsletter_content_html = get_newsletter_template(
-                    articles=relevant_articles,
+                    articles=enriched_articles,
                     user_name=user_name,
                     newsletter_format=newsletter_format,
                     user_topics=user_topics,
@@ -206,7 +213,7 @@ def main(timer: func.TimerRequest) -> None:
 
                 # Generate plain text version for email clients that don't support HTML
                 newsletter_content_text = get_plain_text_newsletter(
-                    articles=relevant_articles,
+                    articles=enriched_articles,
                     user_name=user_name
                 )
 
