@@ -4,7 +4,6 @@ Feedback API endpoints for article ratings and user engagement.
 from datetime import UTC, datetime
 import logging
 
-from auth import User, get_current_user_optional
 from dependencies import get_db_client
 from fastapi import APIRouter, Depends, status, Query
 from fastapi.responses import HTMLResponse
