@@ -25,75 +25,7 @@ class ArticleFeedback(BaseModel):
     comment: str | None = None
 
 
-@router.post("/api/feedback", status_code=status.HTTP_201_CREATED)
-async def create_feedback(feedback: FeedbackCreate, db=Depends(get_db_client)):
-    """Legacy feedback endpoint for chat messages."""
-    feedback_collection = db.feedback
-    feedback_entry = {
-        "message_id": feedback.message_id,
-        "user_id": feedback.user_id,
-        "rating": feedback.rating,
-        "timestamp": datetime.now(UTC),
-    }
-    feedback_collection.insert_one(feedback_entry)
-    return {"message": "Feedback received."}
-
-
-@router.get("/api/feedback", status_code=status.HTTP_200_OK)
-async def submit_article_feedback_via_get(
-    article: str = Query(..., description="Article ID"),
-    rating: str = Query(..., description="Rating: 'up' or 'down'"),
-    user_id: str = Query(None, description="User ID (optional for anonymous feedback)"),
-    db=Depends(get_db_client)
-):
-    """
-    Submit article feedback via GET request (for email links).
-
-    This endpoint allows feedback submission through simple email links like:
-    /api/feedback?article=123&rating=up&user_id=456
-
-    Returns an HTML page thanking the user.
-    """
-    feedback_collection = db.article_feedback
-
-    # Validate rating
-    if rating not in ["up", "down"]:
-        return HTMLResponse(
-            content=get_error_html("Invalid rating. Must be 'up' or 'down'."),
-            status_code=400
-        )
-
-    # Create feedback document
-    feedback_doc = {
-        "article_id": article,
-        "rating": rating,
-        "created_at": datetime.now(UTC),
-        "source": "email"
-    }
-
-    if user_id:
-        feedback_doc["user_id"] = user_id
-        # Upsert feedback (one rating per user per article)
-        feedback_collection.update_one(
-            {"user_id": user_id, "article_id": article},
-            {"$set": feedback_doc},
-            upsert=True
-        )
-    else:
-        # Anonymous feedback, just insert
-        feedback_collection.insert_one(feedback_doc)
-
-    logger.info(
-        "Email feedback submitted",
-        user_id=user_id,
-        article_id=article,
-        rating=rating
-    )
-
-    # Return HTML page
-    return HTMLResponse(content=get_success_html(rating))
-
-
+# Helper functions for HTML responses (defined before use)
 def get_success_html(rating: str) -> str:
     """Generate success HTML page for feedback submission."""
     emoji = "👍" if rating == "up" else "👎"
@@ -238,4 +170,74 @@ def get_error_html(error_message: str) -> str:
     </body>
     </html>
     """
+
+
+# Route handlers
+@router.post("/api/feedback", status_code=status.HTTP_201_CREATED)
+async def create_feedback(feedback: FeedbackCreate, db=Depends(get_db_client)):
+    """Legacy feedback endpoint for chat messages."""
+    feedback_collection = db.feedback
+    feedback_entry = {
+        "message_id": feedback.message_id,
+        "user_id": feedback.user_id,
+        "rating": feedback.rating,
+        "timestamp": datetime.now(UTC),
+    }
+    feedback_collection.insert_one(feedback_entry)
+    return {"message": "Feedback received."}
+
+
+@router.get("/api/feedback", status_code=status.HTTP_200_OK)
+async def submit_article_feedback_via_get(
+    article: str = Query(..., description="Article ID"),
+    rating: str = Query(..., description="Rating: 'up' or 'down'"),
+    user_id: str = Query(None, description="User ID (optional for anonymous feedback)"),
+    db=Depends(get_db_client)
+):
+    """
+    Submit article feedback via GET request (for email links).
+
+    This endpoint allows feedback submission through simple email links like:
+    /api/feedback?article=123&rating=up&user_id=456
+
+    Returns an HTML page thanking the user.
+    """
+    feedback_collection = db.article_feedback
+
+    # Validate rating
+    if rating not in ["up", "down"]:
+        return HTMLResponse(
+            content=get_error_html("Invalid rating. Must be 'up' or 'down'."),
+            status_code=400
+        )
+
+    # Create feedback document
+    feedback_doc = {
+        "article_id": article,
+        "rating": rating,
+        "created_at": datetime.now(UTC),
+        "source": "email"
+    }
+
+    if user_id:
+        feedback_doc["user_id"] = user_id
+        # Upsert feedback (one rating per user per article)
+        feedback_collection.update_one(
+            {"user_id": user_id, "article_id": article},
+            {"$set": feedback_doc},
+            upsert=True
+        )
+    else:
+        # Anonymous feedback, just insert
+        feedback_collection.insert_one(feedback_doc)
+
+    logger.info(
+        "Email feedback submitted",
+        user_id=user_id,
+        article_id=article,
+        rating=rating
+    )
+
+    # Return HTML page
+    return HTMLResponse(content=get_success_html(rating))
 
