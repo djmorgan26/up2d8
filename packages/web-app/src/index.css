@@ -174,4 +174,9 @@ All colors MUST be HSL.
   button, a {
     min-height: 44px;
   }
+
+  /* Safe area support for notched devices (iPhone X and newer) */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
 }

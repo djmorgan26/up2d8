@@ -7,16 +7,6 @@ on:
       - main
     paths:
       - 'packages/functions/**'
-      - 'packages/shared/**'
-      - '.github/workflows/up2d8-functions.yml'
-
-  # Automatic deployment on PR to main (for testing)
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'packages/functions/**'
-      - 'packages/shared/**'
       - '.github/workflows/up2d8-functions.yml'
 
   # Manual deployment option

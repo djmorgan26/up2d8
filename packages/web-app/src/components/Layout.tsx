@@ -14,13 +14,17 @@ export const Layout = ({ children }: LayoutProps) => {
       {/* Desktop Sidebar - Hidden on mobile */}
       <Sidebar className="hidden md:flex" />
 
-      <main className="flex-1 overflow-auto">
-        <div className="container mx-auto px-3 pb-3 pt-6 md:p-6 max-w-7xl">
-          {/* Mobile Navigation - Inline at top */}
-          <div className="md:hidden mb-6">
-            <MobileNav open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} />
-          </div>
+      {/* Mobile Header - Fixed at top with safe area support */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 glass-card border-b border-white/20 dark:border-white/10 backdrop-blur-xl safe-top">
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <MobileNav open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} />
+          <h1 className="text-lg font-bold gradient-text flex-shrink-0">UP2D8</h1>
+          <div className="w-10" /> {/* Spacer for visual balance */}
+        </div>
+      </div>
 
+      <main className="flex-1 overflow-auto">
+        <div className="container mx-auto px-4 pb-4 pt-[72px] md:p-6 max-w-7xl">
           {children}
         </div>
       </main>

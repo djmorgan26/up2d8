@@ -5,12 +5,19 @@ import azure.functions as func
 from shared.email_service import EmailMessage, SMTPProvider
 from shared.embeddings_service import EmbeddingsService
 from shared.email_template import get_newsletter_template, get_plain_text_newsletter
-from shared.article_enrichment import enrich_articles
 from dotenv import load_dotenv
 from shared.key_vault_client import get_secret_client
 import structlog
 from shared.logger_config import configure_logger
 from datetime import datetime
+
+# Conditional import for article enrichment (may not be deployed yet)
+try:
+    from shared.article_enrichment import enrich_articles
+    ENRICHMENT_AVAILABLE = True
+except ImportError as e:
+    ENRICHMENT_AVAILABLE = False
+    # Will be logged when function runs
 
 # Configure structlog
 configure_logger()
@@ -188,10 +195,21 @@ def main(timer: func.TimerRequest) -> None:
                           top_score=ranked_articles[0][1] if ranked_articles else 0.0)
 
                 # Enrich articles with metadata (source, read_time, topic, published_time_ago)
-                enriched_articles = enrich_articles(relevant_articles, user_topics)
-                logger.info("Enriched articles with metadata",
-                          user_email=user_email,
-                          article_count=len(enriched_articles))
+                if ENRICHMENT_AVAILABLE:
+                    try:
+                        enriched_articles = enrich_articles(relevant_articles, user_topics)
+                        logger.info("Enriched articles with metadata",
+                                  user_email=user_email,
+                                  article_count=len(enriched_articles))
+                    except Exception as enrichment_error:
+                        logger.warning("Failed to enrich articles, using original articles",
+                                     user_email=user_email,
+                                     error=str(enrichment_error))
+                        enriched_articles = relevant_articles
+                else:
+                    logger.warning("Article enrichment not available (module not deployed), using original articles",
+                                 user_email=user_email)
+                    enriched_articles = relevant_articles
 
                 # Get user's first name if available
                 user_name = user.get('name', 'there')

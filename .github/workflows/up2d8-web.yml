@@ -7,16 +7,6 @@ on:
       - main
     paths:
       - 'packages/web-app/**'
-      - 'packages/shared/**'
-      - '.github/workflows/up2d8-web.yml'
-
-  # Automatic deployment on PR to main (for preview)
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'packages/web-app/**'
-      - 'packages/shared/**'
       - '.github/workflows/up2d8-web.yml'
 
   # Manual deployment option
